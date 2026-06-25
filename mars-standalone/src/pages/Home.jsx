@@ -1,0 +1,10 @@
+import React from 'react'
+import HeroSection from '@/components/mars/HeroSection'
+import KeySpecs from '@/components/mars/KeySpecs'
+import FeaturesGrid from '@/components/mars/FeaturesGrid'
+import ModularDesign from '@/components/mars/ModularDesign'
+import BuildBreakdown from '@/components/mars/BuildBreakdown'
+import MK2Roadmap from '@/components/mars/MK2Roadmap'
+import Navbar from '@/components/mars/Navbar'
+import Footer from '@/components/mars/Footer'
+export default function Home() { return <div className="min-h-screen bg-[#0a0e17] text-white overflow-x-hidden"><Navbar /><HeroSection /><KeySpecs /><FeaturesGrid /><ModularDesign /><BuildBreakdown /><MK2Roadmap /><Footer /></div> }

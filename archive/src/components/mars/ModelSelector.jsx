@@ -1,0 +1,9 @@
+import React, { useState, useRef, useEffect } from 'react'
+import { ChevronDown, Zap, Brain, Globe, Sparkles } from 'lucide-react'
+import { MODEL_MODES } from '@/components/mars/marsConfig'
+const ICONS = { auto: Sparkles, local: Zap, cloud: Brain, robot: Globe }
+export default function ModelSelector({ mode, onChange }) {
+  const [open, setOpen] = useState(false); const ref = useRef(null); const ActiveIcon = ICONS[mode] || Sparkles; const current = MODEL_MODES.find(m => m.value === mode)
+  useEffect(() => { const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }; document.addEventListener('mousedown', handler); return () => document.removeEventListener('mousedown', handler) }, [])
+  return <div className="relative" ref={ref}><button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/5 hover:border-cyan-500/20 transition-colors"><ActiveIcon size={13} className="text-cyan-400" /><span className="text-xs font-medium text-white/70">{current?.label}</span><ChevronDown size={12} className={`text-white/30 transition-transform ${open ? 'rotate-180' : ''}`} /></button>{open && <div className="absolute top-full right-0 mt-2 w-52 rounded-xl border border-white/10 bg-[#0d1220] shadow-2xl shadow-black/50 overflow-hidden z-50">{MODEL_MODES.map(m => { const Icon = ICONS[m.value] || Sparkles; return <button key={m.value} onClick={() => { onChange(m.value); setOpen(false) }} className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-white/[0.04] text-left ${mode === m.value ? 'bg-cyan-500/[0.06]' : ''}`}><Icon size={15} className={`mt-0.5 ${mode === m.value ? 'text-cyan-400' : 'text-white/30'}`} /><div><p className={`text-xs font-semibold ${mode === m.value ? 'text-cyan-400' : 'text-white/80'}`}>{m.label}</p><p className="text-[10px] text-white/30 mt-0.5">{m.desc}</p></div></button> })}</div>}</div>
+}

@@ -1,0 +1,191 @@
+MARS Mk1 — Remove Base44 Plan
+Phase 0 — Safety
+
+Keep two versions:
+
+MARS-Mk1-Base44-Archive
+MARS-Mk1-Standalone
+
+Do not edit the archive. All work happens in the standalone copy.
+
+Phase 1 — Make it run without Base44
+
+Goal: app opens locally with no Base44 packages.
+
+Remove:
+
+@base44/sdk
+@base44/vite-plugin
+src/api/base44Client.js
+src/lib/app-params.js
+
+Change:
+
+vite.config.js
+package.json
+App.jsx
+ChatPanel.jsx
+Login/Register/Forgot/Reset pages
+AuthContext.jsx
+
+Temporary approach:
+
+Disable login.
+Route / straight to Control.
+Keep /showcase for the MARS website.
+Store chat history in browser localStorage.
+
+Result:
+
+npm install
+npm run dev
+
+MARS opens and the UI works.
+
+Phase 2 — Replace Base44 chat storage
+
+Current:
+
+base44.entities.MarsMessage
+
+Replace with:
+
+src/services/marsStorage.js
+
+Functions:
+
+listMessages()
+saveMessage(message)
+clearMessages()
+
+Storage type:
+
+localStorage first
+database later
+Phase 3 — Replace Base44 AI call
+
+Current:
+
+base44.integrations.Core.InvokeLLM()
+
+Replace with:
+
+src/services/marsAI.js
+
+Functions:
+
+sendMarsMessage({ prompt, model, useWeb })
+
+First version:
+
+fake response / test response
+
+Second version:
+
+OpenAI API or local backend
+
+Later:
+
+Ollama / LM Studio / Android local AI
+Phase 4 — Clean authentication
+
+For Mk1 standalone:
+
+No login needed
+
+Later options:
+
+Local PIN
+Firebase
+Supabase
+Custom backend
+
+For now, remove the login requirement so development is faster.
+
+Phase 5 — Prepare robot control layer
+
+Add:
+
+src/services/robotControl.js
+
+Initial functions:
+
+moveForward()
+moveBack()
+turnLeft()
+turnRight()
+stop()
+lookUp()
+lookDown()
+lookLeft()
+lookRight()
+takePhoto()
+statusReport()
+
+First version:
+
+console logs only
+
+Later:
+
+Bluetooth / Android bridge / LEGO hub
+Phase 6 — Android/S22 bridge
+
+Eventually the web/React app talks to the phone or native Android app.
+
+Possible approach:
+
+React UI
+↓
+local Android bridge
+↓
+Samsung S22 camera / mic / speech
+↓
+LEGO Hub Bluetooth
+
+But not yet. First we make the React project independent.
+
+File change order
+Step 1
+
+Update:
+
+package.json
+vite.config.js
+App.jsx
+Step 2
+
+Create:
+
+src/services/marsStorage.js
+src/services/marsAI.js
+Step 3
+
+Edit:
+
+src/components/mars/ChatPanel.jsx
+Step 4
+
+Clean or park:
+
+AuthContext.jsx
+ProtectedRoute.jsx
+Login.jsx
+Register.jsx
+ForgotPassword.jsx
+ResetPassword.jsx
+PageNotFound.jsx
+First milestone
+MARS Mk1 Standalone v0.1
+
+Success means:
+
+App runs without Base44
+Control screen opens
+ChatPanel works
+Voice input still works
+Eyes animation still works
+Messages save locally
+Quick commands work
+
+That should be our first target.
