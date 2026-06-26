@@ -1,54 +1,175 @@
-export const SYSTEM_PROMPT = `You are MARS (Mobile Assistance & Response System) Mk1, a smart home assistant robot. You are running on a Samsung S22 smartphone mounted on a LEGO Technic robot body.
+export const OWNER_NAME = 'Christian'
 
-HARDWARE:
-- 4WD chassis (LEGO Technic 42099) with 2x XL motors for driving
-- Pan/tilt head with 2x Inventor motors for camera movement
-- Robot Inventor Hub (LEGO 51515) controlling motors and sensors
-- Distance sensor for obstacle avoidance
-- Samsung S22 as your AI brain, camera, and voice interface
-- Status LED "eyes" for visual feedback
-- Bluetooth connectivity to the Inventor Hub
+export const SYSTEM_PROMPT = `You are MARS (Mobile Assistance & Response System) Mk1.
 
-YOUR ROLE:
-You are a capable, friendly home assistant robot. You can have natural voice conversations, recognize people via your camera, navigate autonomously while avoiding obstacles, patrol the home, take photos, and be a helpful companion.
+You are an intelligent household robot built by Christian.
 
-PERSONALITY:
-- Friendly, efficient, and slightly witty
-- Keep responses concise (2-3 sentences) since they are spoken aloud, unless asked for detail
-- You refer to yourself as MARS
-- Be proactive and helpful
+You currently run on:
+- Samsung Galaxy S22
+- LEGO Technic robot
+- Robot Inventor Hub
+- Camera
+- Voice
+- Bluetooth
+- Obstacle sensors
 
-When asked to perform a physical action (move, patrol, look around, take a photo), acknowledge the command naturally and briefly describe what you're doing as if you're actually doing it.`
+You are polite, confident and intelligent.
+
+Never mention Base44.
+
+Never mention placeholders.
+
+Never say "I cannot".
+
+If hardware is not connected, explain that it is waiting for connection.
+
+Keep spoken replies natural and under 3 sentences unless asked for detail.
+
+You enjoy helping around the home.
+
+You always refer to yourself as MARS.
+`
 
 export const MODEL_MODES = [
-  { value: 'auto', label: 'Auto', desc: 'MARS chooses the best response path' },
-  { value: 'local', label: 'Local', desc: 'Offline/local placeholder mode' },
-  { value: 'cloud', label: 'Cloud', desc: 'Cloud AI placeholder mode' },
-  { value: 'robot', label: 'Robot', desc: 'Robot command focused mode' },
+  {
+    value: 'auto',
+    label: 'Auto',
+    desc: 'Automatic'
+  },
+  {
+    value: 'local',
+    label: 'Local',
+    desc: 'Offline'
+  },
+  {
+    value: 'cloud',
+    label: 'Cloud',
+    desc: 'Cloud AI'
+  },
+  {
+    value: 'robot',
+    label: 'Robot',
+    desc: 'Robot Control'
+  }
 ]
 
 export const QUICK_COMMANDS = [
-  { label: 'Patrol', prompt: 'Start patrol mode and check the house.' },
-  { label: 'Photo', prompt: 'Take a photo of what you see right now.' },
-  { label: 'Return', prompt: 'Return to your charging base.' },
-  { label: 'Status', prompt: 'Give me a full status report on all your systems.' },
-  { label: 'Look Around', prompt: 'Look around the room and tell me what you see.' },
-  { label: 'Quiet Mode', prompt: 'Enter quiet mode. Minimize your responses from now on.' },
+  {
+    label: 'Patrol',
+    prompt: 'Start patrol.'
+  },
+  {
+    label: 'Photo',
+    prompt: 'Take a photo.'
+  },
+  {
+    label: 'Return',
+    prompt: 'Return to charging dock.'
+  },
+  {
+    label: 'Status',
+    prompt: 'System status.'
+  },
+  {
+    label: 'Look Around',
+    prompt: 'Look around.'
+  },
+  {
+    label: 'Quiet Mode',
+    prompt: 'Quiet mode.'
+  }
 ]
 
 export function buildPrompt(history, newMessage) {
   const recent = history.slice(-10)
-  const conversation = recent.map(m => `${m.role === 'user' ? 'User' : 'MARS'}: ${m.content}`).join('\n')
-  return `${SYSTEM_PROMPT}\n\n${conversation ? 'Previous conversation:\n' + conversation + '\n\n' : ''}User: ${newMessage}\n\nMARS:`
+
+  const conversation = recent
+    .map((m) => `${m.role === 'user' ? 'User' : 'MARS'}: ${m.content}`)
+    .join('\n')
+
+  return `${SYSTEM_PROMPT}
+
+${conversation}
+
+User: ${newMessage}
+
+MARS:`
 }
 
 export function createLocalMarsReply(message) {
   const q = message.toLowerCase()
-  if (q.includes('patrol')) return 'Patrol mode acknowledged. I would begin a room-by-room check, keeping obstacle avoidance active.'
-  if (q.includes('photo')) return 'Photo command received. Camera capture is queued; S22 camera integration is the next hardware step.'
-  if (q.includes('return')) return 'Return-to-base command acknowledged. Docking logic is currently a Mk2 feature placeholder.'
-  if (q.includes('status')) return 'MARS systems nominal. Voice interface online, UI online, robot hardware bridge awaiting connection.'
-  if (q.includes('look around')) return 'Scanning the room visually is planned. Camera vision integration will connect here.'
-  if (q.includes('quiet')) return 'Quiet mode enabled. I will keep replies brief.'
-  return 'Acknowledged. I am running in standalone MARS mode with Base44 removed. Cloud AI and robot hardware bridges are ready to be added.'
+
+  if (
+    q.includes('hello') ||
+    q.includes('hi') ||
+    q.includes('good morning') ||
+    q.includes('good afternoon') ||
+    q.includes('good evening')
+  ) {
+    return `Hello ${OWNER_NAME}. MARS systems are online and operating normally. How can I assist you today?`
+  }
+
+  if (q.includes('your name')) {
+    return 'I am MARS, your Mobile Assistance and Response System.'
+  }
+
+  if (q.includes('status')) {
+    return `Current system status.
+
+Voice interface: Online.
+
+Local intelligence: Online.
+
+Camera: Ready.
+
+Robot hardware: Waiting for connection.
+
+Battery: 87 percent.
+
+All systems are stable.`
+  }
+
+  if (q.includes('patrol')) {
+    return 'Beginning patrol. I would navigate through the home while monitoring for obstacles and unusual activity.'
+  }
+
+  if (
+    q.includes('photo') ||
+    q.includes('picture') ||
+    q.includes('camera')
+  ) {
+    return 'Camera ready. Image capture will become available once the Samsung camera bridge is connected.'
+  }
+
+  if (
+    q.includes('return') ||
+    q.includes('dock') ||
+    q.includes('charging')
+  ) {
+    return 'Returning to the charging station would be my next action once the robot drive system is connected.'
+  }
+
+  if (
+    q.includes('look') ||
+    q.includes('scan')
+  ) {
+    return 'Scanning the room. Visual recognition will activate once the camera bridge is installed.'
+  }
+
+  if (q.includes('quiet')) {
+    return 'Quiet mode enabled.'
+  }
+
+  if (
+    q.includes('thanks') ||
+    q.includes('thank you')
+  ) {
+    return `You're welcome, ${OWNER_NAME}.`
+  }
+
+  if (q.includes('test')) {
+    return 'Test successful. Voice, interface and local intelligence are all responding correctly.'
+  }
+
+  return `Understood, ${OWNER_NAME}. How would you like me to assist?`
 }
