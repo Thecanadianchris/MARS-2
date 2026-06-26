@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain } from 'lucide-react'
+import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
 import DashboardPanel from '@/components/mars/DashboardPanel'
 import MemoryPanel from '@/components/mars/MemoryPanel'
+import VisionPanel from '@/components/mars/VisionPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -81,6 +82,8 @@ export default function Control() {
             onClear={handleClearMemory}
           />
         )}
+
+        {tab === 'vision' && <VisionPanel />}
       </main>
 
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg border-t border-white/5 bg-[#0a0e17]/95 backdrop-blur-xl z-40">
@@ -107,6 +110,18 @@ export default function Control() {
           >
             <Gauge size={18} />
             <span className="text-[10px] font-mono tracking-wider">CONTROL</span>
+          </button>
+
+          <button
+            onClick={() => setTab('vision')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 ${
+              tab === 'vision'
+                ? 'text-cyan-400'
+                : 'text-white/30 hover:text-white/50'
+            }`}
+          >
+            <Eye size={18} />
+            <span className="text-[10px] font-mono tracking-wider">VISION</span>
           </button>
 
           <button
