@@ -6,6 +6,7 @@ import ChatPanel from '@/components/mars/ChatPanel'
 import DashboardPanel from '@/components/mars/DashboardPanel'
 import MemoryPanel from '@/components/mars/MemoryPanel'
 import VisionPanel from '@/components/mars/VisionPanel'
+import AIStatusPanel from '@/components/system/AIStatusPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -72,7 +73,10 @@ export default function Control() {
         )}
 
         {tab === 'dashboard' && (
-          <DashboardPanel onAction={handleQuickAction} />
+          <div className="flex flex-col gap-4 p-4 overflow-y-auto">
+            <AIStatusPanel />
+            <DashboardPanel onAction={handleQuickAction} />
+          </div>
         )}
 
         {tab === 'memory' && (
