@@ -10,7 +10,7 @@
  * continuous monitoring through the MARS Vision Pipeline.
  *
  * Version:
- * v0.10.8
+ * v0.11.0
  *
  * Date Code:
  * 280626
@@ -282,6 +282,77 @@ export default function CameraPreviewPanel() {
               <ResultRow
                 label="Pattern Confidence"
                 value={`${pipelineResult.behaviourPattern.confidence}%`}
+              />
+            </>
+          )}
+
+          {pipelineResult.activityRecognition && (
+            <>
+              <ResultRow
+                label="Activity"
+                value={pipelineResult.activityRecognition.activityDisplay}
+              />
+              <ResultRow
+                label="Activity Direction"
+                value={pipelineResult.activityRecognition.direction || 'unknown'}
+              />
+              <ResultRow
+                label="Activity Confidence"
+                value={`${pipelineResult.activityRecognition.confidence}%`}
+              />
+            </>
+          )}
+
+
+          {pipelineResult.faceFoundation && (
+            <>
+              <ResultRow
+                label="Face Foundation"
+                value={
+                  pipelineResult.faceFoundation.faceDetected
+                    ? 'detected'
+                    : 'not detected'
+                }
+              />
+              <ResultRow
+                label="Head Orientation"
+                value={pipelineResult.faceFoundation.head.orientation}
+              />
+              <ResultRow
+                label="Head Pitch"
+                value={pipelineResult.faceFoundation.head.pitch}
+              />
+              <ResultRow
+                label="Head Yaw"
+                value={pipelineResult.faceFoundation.head.yaw}
+              />
+              <ResultRow
+                label="Head Roll"
+                value={pipelineResult.faceFoundation.head.roll}
+              />
+              <ResultRow
+                label="Pitch Score"
+                value={pipelineResult.faceFoundation.head.pitchScore ?? 0}
+              />
+              <ResultRow
+                label="Yaw Score"
+                value={pipelineResult.faceFoundation.head.yawScore ?? 0}
+              />
+              <ResultRow
+                label="Roll Score"
+                value={pipelineResult.faceFoundation.head.rollScore ?? 0}
+              />
+              <ResultRow
+                label="Head Confidence"
+                value={`${pipelineResult.faceFoundation.confidence}%`}
+              />
+              <ResultRow
+                label="Observations"
+                value={
+                  pipelineResult.faceFoundation.observations
+                    ?.map((observation) => observation.label)
+                    .join(', ') || 'none'
+                }
               />
             </>
           )}

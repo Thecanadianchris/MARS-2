@@ -14,7 +14,7 @@
  * patterns over time.
  *
  * Version:
- * v0.10.8
+ * v0.10.9
  *
  * Date Code:
  * 280626
@@ -68,6 +68,7 @@ class BehaviourHistoryEngine {
       movementConfidence: pipelineResult.movement?.confidence || 0,
       riskLevel: pipelineResult.risk?.level || 0,
       centre: pipelineResult.poseSummary?.centre || null,
+      bodyScale: this.calculateBodyScale(pipelineResult.poseSummary),
 
     }
 
@@ -260,6 +261,24 @@ class BehaviourHistoryEngine {
 
   }
 
+
+  calculateBodyScale(poseSummary) {
+
+    const measurements = poseSummary?.measurements
+
+    if (!measurements) {
+
+      return 0
+
+    }
+
+    const shoulderWidth = measurements.shoulderWidth || 0
+    const torsoLength = measurements.torsoLength || 0
+
+    return Number(((shoulderWidth + torsoLength) / 2).toFixed(4))
+
+  }
+
   calculateContinuousDuration(key, value) {
 
     if (this.history.length === 0) {
@@ -371,6 +390,7 @@ class BehaviourHistoryEngine {
       movement: entry.movement,
       direction: entry.movementDirection,
       centre: entry.centre,
+      bodyScale: entry.bodyScale,
     }))
 
   }

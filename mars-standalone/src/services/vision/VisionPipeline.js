@@ -16,10 +16,12 @@
  * - Run movement analysis
  * - Record short-term behaviour history
  * - Detect short-term behaviour patterns
+ * - Recognise simple human activities
+ * - Estimate face/head foundation signals
  * - Produce a structured vision result for the UI
  *
  * Version:
- * v0.10.8
+ * v0.11.0
  *
  * Date Code:
  * 280626
@@ -32,6 +34,8 @@ import PoseSummaryService from './PoseSummaryService'
 import BodyStateEngine from './BodyStateEngine'
 import BehaviourHistoryEngine from './BehaviourHistoryEngine'
 import BehaviourPatternEngine from './BehaviourPatternEngine'
+import ActivityRecognitionEngine from './ActivityRecognitionEngine'
+import FaceFoundationEngine from './FaceFoundationEngine'
 
 class VisionPipeline {
   async processFrame(frame) {
@@ -94,16 +98,34 @@ class VisionPipeline {
 
     const behaviourHistory = BehaviourHistoryEngine.record(resultWithMovement)
     const behaviourPattern = BehaviourPatternEngine.evaluate(behaviourHistory)
+    const activityRecognition = ActivityRecognitionEngine.evaluate(
+      behaviourHistory,
+      behaviourPattern
+    )
+    const faceFoundation = FaceFoundationEngine.evaluate(
+      poseResult,
+      poseSummary
+    )
 
     const calculatedRiskLevel = Math.min(
       10,
-      bodyRiskLevel + behaviourHistory.riskModifier + behaviourPattern.riskModifier
+      bodyRiskLevel +
+        behaviourHistory.riskModifier +
+        behaviourPattern.riskModifier +
+        activityRecognition.riskModifier +
+        faceFoundation.riskModifier
     )
 
     return {
       ...resultWithMovement,
+      detections: {
+        ...resultWithMovement.detections,
+        faces: faceFoundation.faceCount,
+      },
       behaviourHistory,
       behaviourPattern,
+      activityRecognition,
+      faceFoundation,
       risk: {
         level: calculatedRiskLevel,
         label: this.getRiskLabel(calculatedRiskLevel),
@@ -111,7 +133,9 @@ class VisionPipeline {
           bodyState,
           movement,
           behaviourHistory,
-          behaviourPattern
+          behaviourPattern,
+          activityRecognition,
+          faceFoundation
         ),
       },
       summary:
@@ -121,11 +145,20 @@ class VisionPipeline {
         `${movement.summary}\n` +
         `${behaviourHistory.summary}\n` +
         `${behaviourPattern.summary}\n` +
+        `${activityRecognition.summary}\n` +
+        `${faceFoundation.summary}\n` +
         `Risk: ${calculatedRiskLevel} / 10`,
     }
   }
 
-  calculateConfidence(bodyState, movement, behaviourHistory, behaviourPattern) {
+  calculateConfidence(
+    bodyState,
+    movement,
+    behaviourHistory,
+    behaviourPattern,
+    activityRecognition,
+    faceFoundation
+  ) {
     const confidenceValues = [
       bodyState?.confidence || 0,
       movement?.confidence || 0,
@@ -139,6 +172,14 @@ class VisionPipeline {
 
     if (behaviourPattern?.confidence > 0) {
       confidenceValues.push(behaviourPattern.confidence)
+    }
+
+    if (activityRecognition?.confidence > 0) {
+      confidenceValues.push(activityRecognition.confidence)
+    }
+
+    if (faceFoundation?.confidence > 0) {
+      confidenceValues.push(faceFoundation.confidence)
     }
 
     const total = confidenceValues.reduce((sum, value) => sum + value, 0)
@@ -178,6 +219,8 @@ class VisionPipeline {
       movement: null,
       behaviourHistory: null,
       behaviourPattern: null,
+      activityRecognition: null,
+      faceFoundation: null,
       risk: {
         level: 0,
         label: 'unknown',
