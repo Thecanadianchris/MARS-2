@@ -10,7 +10,7 @@
  * continuous monitoring through the MARS Vision Pipeline.
  *
  * Version:
- * v0.11.1
+ * v0.11.2
  *
  * Date Code:
  * 280626
@@ -303,7 +303,6 @@ export default function CameraPreviewPanel() {
             </>
           )}
 
-
           {pipelineResult.faceFoundation && (
             <>
               <ResultRow
@@ -357,7 +356,6 @@ export default function CameraPreviewPanel() {
             </>
           )}
 
-
           {pipelineResult.observationStream && (
             <>
               <ResultRow
@@ -373,6 +371,42 @@ export default function CameraPreviewPanel() {
             </>
           )}
 
+          {pipelineResult.personalObservation && (
+            <>
+              <ResultRow
+                label="Personal Profile"
+                value={
+                  pipelineResult.personalObservation.profile?.displayName ||
+                  'unknown'
+                }
+              />
+              <ResultRow
+                label="Personal Markers"
+                value={pipelineResult.personalObservation.activeMarkerCount}
+              />
+              <ResultRow
+                label="Personal Priority"
+                value={pipelineResult.personalObservation.highestPriority}
+              />
+              <ResultRow
+                label="Marker Details"
+                value={
+                  pipelineResult.personalObservation.markers
+                    ?.map(
+                      (marker) =>
+                        `${marker.label}: ${
+                          marker.active
+                            ? 'active'
+                            : marker.currentlyObserved
+                              ? `${marker.durationSeconds}/${marker.requiredSeconds}s`
+                              : 'inactive'
+                        }`
+                    )
+                    .join(', ') || 'none'
+                }
+              />
+            </>
+          )}
 
           {pipelineResult.risk && (
             <>

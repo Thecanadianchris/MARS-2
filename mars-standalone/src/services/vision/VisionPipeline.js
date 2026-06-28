@@ -18,10 +18,12 @@
  * - Detect short-term behaviour patterns
  * - Recognise simple human activities
  * - Estimate face/head foundation signals
+ * - Produce a neutral observation stream
+ * - Evaluate personal observation markers
  * - Produce a structured vision result for the UI
  *
  * Version:
- * v0.11.1
+ * v0.11.2
  *
  * Date Code:
  * 280626
@@ -37,6 +39,7 @@ import BehaviourPatternEngine from './BehaviourPatternEngine'
 import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
 import ObservationStreamEngine from './ObservationStreamEngine'
+import PersonalObservationEngine from './PersonalObservationEngine'
 
 class VisionPipeline {
   async processFrame(frame) {
@@ -108,18 +111,25 @@ class VisionPipeline {
       poseSummary
     )
 
-    const calculatedRiskLevel = Math.min(
-      10,
-      bodyRiskLevel +
-        behaviourHistory.riskModifier +
-        behaviourPattern.riskModifier +
-        activityRecognition.riskModifier +
-        faceFoundation.riskModifier
-    )
-
-    const risk = {
-      level: calculatedRiskLevel,
-      label: this.getRiskLabel(calculatedRiskLevel),
+    const riskBeforePersonalObservation = {
+      level: Math.min(
+        10,
+        bodyRiskLevel +
+          behaviourHistory.riskModifier +
+          behaviourPattern.riskModifier +
+          activityRecognition.riskModifier +
+          faceFoundation.riskModifier
+      ),
+      label: this.getRiskLabel(
+        Math.min(
+          10,
+          bodyRiskLevel +
+            behaviourHistory.riskModifier +
+            behaviourPattern.riskModifier +
+            activityRecognition.riskModifier +
+            faceFoundation.riskModifier
+        )
+      ),
       confidence: this.calculateConfidence(
         bodyState,
         movement,
@@ -130,7 +140,7 @@ class VisionPipeline {
       ),
     }
 
-    const resultBeforeObservationStream = {
+    const resultBeforePersonalObservation = {
       ...resultWithMovement,
       detections: {
         ...resultWithMovement.detections,
@@ -140,7 +150,32 @@ class VisionPipeline {
       behaviourPattern,
       activityRecognition,
       faceFoundation,
-      risk,
+      risk: riskBeforePersonalObservation,
+    }
+
+    const preliminaryObservationStream = ObservationStreamEngine.evaluate(
+      resultBeforePersonalObservation
+    )
+
+    const personalObservation = PersonalObservationEngine.evaluate(
+      preliminaryObservationStream
+    )
+
+    const calculatedRiskLevel = Math.min(
+      10,
+      riskBeforePersonalObservation.level + personalObservation.riskModifier
+    )
+
+    const finalRisk = {
+      level: calculatedRiskLevel,
+      label: this.getRiskLabel(calculatedRiskLevel),
+      confidence: riskBeforePersonalObservation.confidence,
+    }
+
+    const resultBeforeObservationStream = {
+      ...resultBeforePersonalObservation,
+      personalObservation,
+      risk: finalRisk,
     }
 
     const observationStream = ObservationStreamEngine.evaluate(
@@ -159,6 +194,7 @@ class VisionPipeline {
         `${behaviourPattern.summary}\n` +
         `${activityRecognition.summary}\n` +
         `${faceFoundation.summary}\n` +
+        `${personalObservation.summary}\n` +
         `${observationStream.summary}\n` +
         `Risk: ${calculatedRiskLevel} / 10`,
     }
@@ -212,6 +248,7 @@ class VisionPipeline {
     MovementAnalysisService.reset()
     BehaviourHistoryEngine.reset()
     FaceFoundationEngine.reset()
+    PersonalObservationEngine.reset()
   }
 
   errorResult(message) {
@@ -236,6 +273,7 @@ class VisionPipeline {
       activityRecognition: null,
       faceFoundation: null,
       observationStream: null,
+      personalObservation: null,
       risk: {
         level: 0,
         label: 'unknown',

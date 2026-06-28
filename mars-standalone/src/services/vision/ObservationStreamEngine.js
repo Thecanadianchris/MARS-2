@@ -15,7 +15,7 @@
  * can consume one consistent vocabulary.
  *
  * Version:
- * v0.11.1
+ * v0.11.2
  *
  * Date Code:
  * 280626
@@ -36,6 +36,7 @@ class ObservationStreamEngine {
     observations.push(...this.createMovementObservations(visionResult))
     observations.push(...this.createActivityObservations(visionResult))
     observations.push(...this.createFaceObservations(visionResult))
+    observations.push(...this.createPersonalObservations(visionResult))
     observations.push(...this.createRiskObservations(visionResult))
 
     const uniqueObservations = this.deduplicate(observations)
@@ -163,6 +164,10 @@ class ObservationStreamEngine {
 
   createFaceObservations(visionResult) {
     return visionResult?.faceFoundation?.observations || []
+  }
+
+  createPersonalObservations(visionResult) {
+    return visionResult?.personalObservation?.observations || []
   }
 
   createRiskObservations(visionResult) {

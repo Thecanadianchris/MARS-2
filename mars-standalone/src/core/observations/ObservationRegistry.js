@@ -14,7 +14,7 @@
  * diagnose or make medical conclusions.
  *
  * Version:
- * v0.11.1
+ * v0.11.2
  *
  * Date Code:
  * 280626
@@ -66,6 +66,11 @@ export const OBSERVATIONS = {
   LYING_DOWN: 'lying_down',
   POSSIBLE_FALL: 'possible_fall',
   REPETITIVE_MOVEMENT: 'repetitive_movement',
+
+  PERSONAL_MARKER_ACTIVE: 'personal_marker_active',
+  PERSONAL_MARKER_INACTIVE: 'personal_marker_inactive',
+  PERSONAL_PROFILE_ACTIVE: 'personal_profile_active',
+  PERSONAL_PROFILE_UNKNOWN: 'personal_profile_unknown',
 
   RISK_NORMAL: 'risk_normal',
   RISK_LOW: 'risk_low',
@@ -119,6 +124,11 @@ export const OBSERVATION_LABELS = {
   [OBSERVATIONS.LYING_DOWN]: 'Lying down',
   [OBSERVATIONS.POSSIBLE_FALL]: 'Possible fall observation',
   [OBSERVATIONS.REPETITIVE_MOVEMENT]: 'Repetitive movement',
+
+  [OBSERVATIONS.PERSONAL_MARKER_ACTIVE]: 'Personal marker active',
+  [OBSERVATIONS.PERSONAL_MARKER_INACTIVE]: 'Personal marker inactive',
+  [OBSERVATIONS.PERSONAL_PROFILE_ACTIVE]: 'Personal profile active',
+  [OBSERVATIONS.PERSONAL_PROFILE_UNKNOWN]: 'Personal profile unknown',
 
   [OBSERVATIONS.RISK_NORMAL]: 'Risk normal',
   [OBSERVATIONS.RISK_LOW]: 'Risk low',
