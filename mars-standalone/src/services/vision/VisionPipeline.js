@@ -14,10 +14,12 @@
  * - Summarise body posture
  * - Evaluate body state
  * - Run movement analysis
+ * - Record short-term behaviour history
+ * - Detect short-term behaviour patterns
  * - Produce a structured vision result for the UI
  *
  * Version:
- * v0.10.6
+ * v0.10.8
  *
  * Date Code:
  * 280626
@@ -28,6 +30,8 @@ import MovementAnalysisService from './MovementAnalysisService'
 import PoseDetectionService from './PoseDetectionService'
 import PoseSummaryService from './PoseSummaryService'
 import BodyStateEngine from './BodyStateEngine'
+import BehaviourHistoryEngine from './BehaviourHistoryEngine'
+import BehaviourPatternEngine from './BehaviourPatternEngine'
 
 class VisionPipeline {
   async processFrame(frame) {
@@ -42,7 +46,7 @@ class VisionPipeline {
     const bodyState = BodyStateEngine.evaluate(poseSummary)
 
     const baseRiskLevel = 0
-    const calculatedRiskLevel = Math.min(
+    const bodyRiskLevel = Math.min(
       10,
       baseRiskLevel + bodyState.riskModifier
     )
@@ -75,24 +79,71 @@ class VisionPipeline {
       bodyState,
 
       risk: {
-        level: calculatedRiskLevel,
-        label: this.getRiskLabel(calculatedRiskLevel),
+        level: bodyRiskLevel,
+        label: this.getRiskLabel(bodyRiskLevel),
         confidence: bodyState.confidence,
       },
     }
 
     const movement = MovementAnalysisService.analyse(baseResult)
 
-    return {
+    const resultWithMovement = {
       ...baseResult,
       movement,
+    }
+
+    const behaviourHistory = BehaviourHistoryEngine.record(resultWithMovement)
+    const behaviourPattern = BehaviourPatternEngine.evaluate(behaviourHistory)
+
+    const calculatedRiskLevel = Math.min(
+      10,
+      bodyRiskLevel + behaviourHistory.riskModifier + behaviourPattern.riskModifier
+    )
+
+    return {
+      ...resultWithMovement,
+      behaviourHistory,
+      behaviourPattern,
+      risk: {
+        level: calculatedRiskLevel,
+        label: this.getRiskLabel(calculatedRiskLevel),
+        confidence: this.calculateConfidence(
+          bodyState,
+          movement,
+          behaviourHistory,
+          behaviourPattern
+        ),
+      },
       summary:
         `${poseResult.summary}\n` +
         `${poseSummary.summary}\n` +
         `${bodyState.summary}\n` +
-        `Movement: ${movement.movement}\n` +
+        `${movement.summary}\n` +
+        `${behaviourHistory.summary}\n` +
+        `${behaviourPattern.summary}\n` +
         `Risk: ${calculatedRiskLevel} / 10`,
     }
+  }
+
+  calculateConfidence(bodyState, movement, behaviourHistory, behaviourPattern) {
+    const confidenceValues = [
+      bodyState?.confidence || 0,
+      movement?.confidence || 0,
+    ]
+
+    if (behaviourHistory?.sampleCount > 1) {
+      confidenceValues.push(
+        Math.min(100, behaviourHistory.sampleCount * 5)
+      )
+    }
+
+    if (behaviourPattern?.confidence > 0) {
+      confidenceValues.push(behaviourPattern.confidence)
+    }
+
+    const total = confidenceValues.reduce((sum, value) => sum + value, 0)
+
+    return Math.round(total / confidenceValues.length)
   }
 
   getRiskLabel(level) {
@@ -101,6 +152,11 @@ class VisionPipeline {
     if (level >= 5) return 'medium'
     if (level >= 3) return 'low'
     return 'normal'
+  }
+
+  reset() {
+    MovementAnalysisService.reset()
+    BehaviourHistoryEngine.reset()
   }
 
   errorResult(message) {
@@ -120,6 +176,8 @@ class VisionPipeline {
       poseSummary: null,
       bodyState: null,
       movement: null,
+      behaviourHistory: null,
+      behaviourPattern: null,
       risk: {
         level: 0,
         label: 'unknown',

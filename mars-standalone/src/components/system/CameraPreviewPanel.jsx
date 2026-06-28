@@ -10,7 +10,7 @@
  * continuous monitoring through the MARS Vision Pipeline.
  *
  * Version:
- * v0.10.2
+ * v0.10.8
  *
  * Date Code:
  * 280626
@@ -69,6 +69,7 @@ export default function CameraPreviewPanel() {
 
   const handleStopCamera = () => {
     ContinuousVisionMonitor.stop()
+    VisionPipeline.reset()
     CameraService.stopCamera()
 
     VisionService.updateStatus({
@@ -210,12 +211,77 @@ export default function CameraPreviewPanel() {
                 value={pipelineResult.movement.movement}
               />
               <ResultRow
+                label="Direction"
+                value={pipelineResult.movement.direction || 'unknown'}
+              />
+              <ResultRow
+                label="Movement Delta"
+                value={pipelineResult.movement.delta ?? 0}
+              />
+              <ResultRow
                 label="Posture"
                 value={pipelineResult.movement.posture}
               />
               <ResultRow
                 label="Movement Confidence"
                 value={`${pipelineResult.movement.confidence}%`}
+              />
+            </>
+          )}
+
+          {pipelineResult.behaviourHistory && (
+            <>
+              <ResultRow
+                label="Behaviour"
+                value={
+                  pipelineResult.behaviourHistory.behaviourDisplay ||
+                  pipelineResult.behaviourHistory.behaviourState
+                }
+              />
+              <ResultRow
+                label="History Samples"
+                value={pipelineResult.behaviourHistory.sampleCount}
+              />
+              <ResultRow
+                label="Visible Ratio"
+                value={`${Math.round(
+                  pipelineResult.behaviourHistory.ratios.visibility * 100
+                )}%`}
+              />
+              <ResultRow
+                label="Lying Time"
+                value={`${Math.round(
+                  pipelineResult.behaviourHistory.durations.lyingMs / 1000
+                )}s`}
+              />
+              <ResultRow
+                label="Moving Time"
+                value={`${Math.round(
+                  pipelineResult.behaviourHistory.durations.movingMs / 1000
+                )}s`}
+              />
+              <ResultRow
+                label="Stationary Time"
+                value={`${Math.round(
+                  pipelineResult.behaviourHistory.durations.stationaryMs / 1000
+                )}s`}
+              />
+            </>
+          )}
+
+          {pipelineResult.behaviourPattern && (
+            <>
+              <ResultRow
+                label="Pattern"
+                value={pipelineResult.behaviourPattern.patternDisplay}
+              />
+              <ResultRow
+                label="Transition"
+                value={pipelineResult.behaviourPattern.transitionDisplay}
+              />
+              <ResultRow
+                label="Pattern Confidence"
+                value={`${pipelineResult.behaviourPattern.confidence}%`}
               />
             </>
           )}
