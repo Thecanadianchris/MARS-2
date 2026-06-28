@@ -9,12 +9,15 @@
  * Central processing pipeline for camera frames.
  *
  * Version:
- * v0.10.1
+ * v0.10.3
  *
  * Date Code:
- * 270626
+ * 280626
  * ==========================================================
  */
+
+import MovementAnalysisService from './MovementAnalysisService'
+import PoseDetectionService from './PoseDetectionService'
 
 class VisionPipeline {
   async processFrame(frame) {
@@ -29,9 +32,17 @@ class VisionPipeline {
 
     const startTime = performance.now()
 
-    const latency = Math.round(performance.now() - startTime + 12)
+    //----------------------------------------------------------
+    // Pose Detection
+    //----------------------------------------------------------
 
-    return {
+    const poseResult = await PoseDetectionService.detectPose(frame)
+
+    //----------------------------------------------------------
+    // Base Vision Result
+    //----------------------------------------------------------
+
+    const baseResult = {
       status: 'success',
       provider: 'LOCAL_PIPELINE',
       timestamp: Date.now(),
@@ -44,15 +55,17 @@ class VisionPipeline {
 
       performance: {
         fps: 30,
-        latencyMs: latency,
+        latencyMs: Math.round(performance.now() - startTime),
       },
 
       detections: {
-        people: 0,
+        people: poseResult.poseDetected ? 1 : 0,
         faces: 0,
         objects: 0,
-        pose: 'not_active',
+        pose: poseResult.pose,
       },
+
+      pose: poseResult,
 
       risk: {
         level: 0,
@@ -60,7 +73,24 @@ class VisionPipeline {
         confidence: 0,
       },
 
-      summary: 'Frame processed successfully by the MARS Vision Pipeline.',
+      summary: poseResult.summary,
+    }
+
+    //----------------------------------------------------------
+    // Movement Analysis
+    //----------------------------------------------------------
+
+    const movement = MovementAnalysisService.analyse(baseResult)
+
+    return {
+      ...baseResult,
+
+      movement,
+
+      summary:
+        `${poseResult.summary}\n` +
+        `Movement: ${movement.movement}\n` +
+        `Posture: ${movement.posture}`,
     }
   }
 }

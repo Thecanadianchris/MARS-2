@@ -6,14 +6,14 @@
  * CameraPreviewPanel
  *
  * Purpose:
- * Displays a live camera preview and captures frames for
- * the MARS Vision Pipeline.
+ * Displays a live camera preview, captures frames and runs
+ * continuous monitoring through the MARS Vision Pipeline.
  *
  * Version:
- * v0.10.1
+ * v0.10.2
  *
  * Date Code:
- * 270626
+ * 280626
  * ==========================================================
  */
 
@@ -22,12 +22,14 @@ import CameraService from '@/services/vision/CameraService'
 import VisionService from '@/services/vision/VisionService'
 import FrameCaptureService from '@/services/vision/FrameCaptureService'
 import VisionPipeline from '@/services/vision/VisionPipeline'
+import ContinuousVisionMonitor from '@/services/vision/ContinuousVisionMonitor'
 
 export default function CameraPreviewPanel() {
   const videoRef = useRef(null)
 
   const [cameraState, setCameraState] = useState({
     active: false,
+    monitoring: false,
     error: null,
   })
 
@@ -46,6 +48,7 @@ export default function CameraPreviewPanel() {
 
       setCameraState({
         active: true,
+        monitoring: false,
         error: null,
       })
     } catch (error) {
@@ -58,22 +61,26 @@ export default function CameraPreviewPanel() {
 
       setCameraState({
         active: false,
+        monitoring: false,
         error: error.message || 'Camera failed to start.',
       })
     }
   }
 
   const handleStopCamera = () => {
+    ContinuousVisionMonitor.stop()
     CameraService.stopCamera()
 
     VisionService.updateStatus({
       cameraActive: false,
       lastFrameAvailable: false,
+      continuousMonitoringEnabled: false,
       activeMode: 'idle',
     })
 
     setCameraState({
       active: false,
+      monitoring: false,
       error: null,
     })
 
@@ -100,6 +107,36 @@ export default function CameraPreviewPanel() {
     }
   }
 
+  const handleStartMonitoring = () => {
+    try {
+      ContinuousVisionMonitor.start(videoRef.current, (result) => {
+        setPipelineResult(result)
+      })
+
+      setCameraState((current) => ({
+        ...current,
+        monitoring: true,
+        error: null,
+      }))
+    } catch (error) {
+      setCameraState((current) => ({
+        ...current,
+        monitoring: false,
+        error: error.message || 'Continuous monitoring failed to start.',
+      }))
+    }
+  }
+
+  const handleStopMonitoring = () => {
+    ContinuousVisionMonitor.stop()
+
+    setCameraState((current) => ({
+      ...current,
+      monitoring: false,
+      error: null,
+    }))
+  }
+
   return (
     <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-4 text-sm text-cyan-100 shadow-lg shadow-cyan-500/10">
       <div className="mb-3 flex items-center justify-between">
@@ -108,7 +145,11 @@ export default function CameraPreviewPanel() {
         </h2>
 
         <span className="rounded-full bg-cyan-500/10 px-2 py-1 text-xs text-cyan-300">
-          {cameraState.active ? 'active' : 'idle'}
+          {cameraState.monitoring
+            ? 'monitoring'
+            : cameraState.active
+              ? 'active'
+              : 'idle'}
         </span>
       </div>
 
@@ -137,20 +178,15 @@ export default function CameraPreviewPanel() {
           <ResultRow label="Provider" value={pipelineResult.provider || 'unknown'} />
 
           {pipelineResult.frame && (
-            <>
-              <ResultRow
-                label="Frame"
-                value={`${pipelineResult.frame.width} x ${pipelineResult.frame.height}`}
-              />
-            </>
+            <ResultRow
+              label="Frame"
+              value={`${pipelineResult.frame.width} x ${pipelineResult.frame.height}`}
+            />
           )}
 
           {pipelineResult.performance && (
             <>
-              <ResultRow
-                label="FPS"
-                value={pipelineResult.performance.fps}
-              />
+              <ResultRow label="FPS" value={pipelineResult.performance.fps} />
               <ResultRow
                 label="Latency"
                 value={`${pipelineResult.performance.latencyMs} ms`}
@@ -160,35 +196,34 @@ export default function CameraPreviewPanel() {
 
           {pipelineResult.detections && (
             <>
+              <ResultRow label="People" value={pipelineResult.detections.people} />
+              <ResultRow label="Faces" value={pipelineResult.detections.faces} />
+              <ResultRow label="Objects" value={pipelineResult.detections.objects} />
+              <ResultRow label="Pose" value={pipelineResult.detections.pose} />
+            </>
+          )}
+
+          {pipelineResult.movement && (
+            <>
               <ResultRow
-                label="People"
-                value={pipelineResult.detections.people}
+                label="Movement"
+                value={pipelineResult.movement.movement}
               />
               <ResultRow
-                label="Faces"
-                value={pipelineResult.detections.faces}
+                label="Posture"
+                value={pipelineResult.movement.posture}
               />
               <ResultRow
-                label="Objects"
-                value={pipelineResult.detections.objects}
-              />
-              <ResultRow
-                label="Pose"
-                value={pipelineResult.detections.pose}
+                label="Movement Confidence"
+                value={`${pipelineResult.movement.confidence}%`}
               />
             </>
           )}
 
           {pipelineResult.risk && (
             <>
-              <ResultRow
-                label="Risk"
-                value={`${pipelineResult.risk.level} / 10`}
-              />
-              <ResultRow
-                label="Risk State"
-                value={pipelineResult.risk.label}
-              />
+              <ResultRow label="Risk" value={`${pipelineResult.risk.level} / 10`} />
+              <ResultRow label="Risk State" value={pipelineResult.risk.label} />
               <ResultRow
                 label="Confidence"
                 value={`${pipelineResult.risk.confidence}%`}
@@ -228,6 +263,23 @@ export default function CameraPreviewPanel() {
         >
           CAPTURE FRAME
         </button>
+
+        {!cameraState.monitoring ? (
+          <button
+            onClick={handleStartMonitoring}
+            disabled={!cameraState.active}
+            className="rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs font-semibold tracking-wide text-green-200 hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            START MONITORING
+          </button>
+        ) : (
+          <button
+            onClick={handleStopMonitoring}
+            className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold tracking-wide text-red-200 hover:bg-red-500/20"
+          >
+            STOP MONITORING
+          </button>
+        )}
       </div>
     </div>
   )
