@@ -10,7 +10,7 @@
  * continuous monitoring through the MARS Vision Pipeline.
  *
  * Version:
- * v0.11.0
+ * v0.11.1
  *
  * Date Code:
  * 280626
@@ -356,6 +356,23 @@ export default function CameraPreviewPanel() {
               />
             </>
           )}
+
+
+          {pipelineResult.observationStream && (
+            <>
+              <ResultRow
+                label="Observation Count"
+                value={pipelineResult.observationStream.observationCount}
+              />
+              <ResultRow
+                label="Observation Stream"
+                value={
+                  pipelineResult.observationStream.labels?.join(', ') || 'none'
+                }
+              />
+            </>
+          )}
+
 
           {pipelineResult.risk && (
             <>

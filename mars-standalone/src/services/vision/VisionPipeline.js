@@ -21,7 +21,7 @@
  * - Produce a structured vision result for the UI
  *
  * Version:
- * v0.11.0b
+ * v0.11.1
  *
  * Date Code:
  * 280626
@@ -36,6 +36,7 @@ import BehaviourHistoryEngine from './BehaviourHistoryEngine'
 import BehaviourPatternEngine from './BehaviourPatternEngine'
 import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
+import ObservationStreamEngine from './ObservationStreamEngine'
 
 class VisionPipeline {
   async processFrame(frame) {
@@ -116,7 +117,20 @@ class VisionPipeline {
         faceFoundation.riskModifier
     )
 
-    return {
+    const risk = {
+      level: calculatedRiskLevel,
+      label: this.getRiskLabel(calculatedRiskLevel),
+      confidence: this.calculateConfidence(
+        bodyState,
+        movement,
+        behaviourHistory,
+        behaviourPattern,
+        activityRecognition,
+        faceFoundation
+      ),
+    }
+
+    const resultBeforeObservationStream = {
       ...resultWithMovement,
       detections: {
         ...resultWithMovement.detections,
@@ -126,18 +140,16 @@ class VisionPipeline {
       behaviourPattern,
       activityRecognition,
       faceFoundation,
-      risk: {
-        level: calculatedRiskLevel,
-        label: this.getRiskLabel(calculatedRiskLevel),
-        confidence: this.calculateConfidence(
-          bodyState,
-          movement,
-          behaviourHistory,
-          behaviourPattern,
-          activityRecognition,
-          faceFoundation
-        ),
-      },
+      risk,
+    }
+
+    const observationStream = ObservationStreamEngine.evaluate(
+      resultBeforeObservationStream
+    )
+
+    return {
+      ...resultBeforeObservationStream,
+      observationStream,
       summary:
         `${poseResult.summary}\n` +
         `${poseSummary.summary}\n` +
@@ -147,6 +159,7 @@ class VisionPipeline {
         `${behaviourPattern.summary}\n` +
         `${activityRecognition.summary}\n` +
         `${faceFoundation.summary}\n` +
+        `${observationStream.summary}\n` +
         `Risk: ${calculatedRiskLevel} / 10`,
     }
   }
@@ -222,6 +235,7 @@ class VisionPipeline {
       behaviourPattern: null,
       activityRecognition: null,
       faceFoundation: null,
+      observationStream: null,
       risk: {
         level: 0,
         label: 'unknown',
