@@ -16,7 +16,7 @@
  * Personal Observation Engine work.
  *
  * Version:
- * v0.11.0a
+ * v0.11.0b
  *
  * Date Code:
  * 280626
@@ -28,7 +28,21 @@ import {
   createObservation,
 } from '@/core/observations/ObservationRegistry'
 
+const HEAD_THRESHOLDS = {
+  yawLeft: -0.12,
+  yawRight: 0.12,
+  pitchUp: 0.14,
+  pitchDown: -0.14,
+  rollLeft: -0.045,
+  rollRight: 0.045,
+  smoothingFrames: 5,
+}
+
 class FaceFoundationEngine {
+  constructor() {
+    this.history = []
+  }
+
   evaluate(poseResult, poseSummary) {
     const landmarks = poseResult?.landmarks || []
 
@@ -53,6 +67,8 @@ class FaceFoundationEngine {
     const leftEyePoint = this.bestVisible([leftEye, leftEyeOuter, leftEyeInner])
     const rightEyePoint = this.bestVisible([rightEye, rightEyeOuter, rightEyeInner])
     const mouthMid = this.midpoint(leftMouth, rightMouth)
+    const eyeMid = this.midpoint(leftEyePoint, rightEyePoint)
+    const shoulderMid = this.midpoint(leftShoulder, rightShoulder)
 
     const headLandmarks = [
       nose,
@@ -79,10 +95,6 @@ class FaceFoundationEngine {
       Math.abs((leftShoulder?.x || 0) - (rightShoulder?.x || 0))
     )
 
-    const shoulderMid = this.midpoint(leftShoulder, rightShoulder)
-    const eyeMid = this.midpoint(leftEyePoint, rightEyePoint)
-    const earMid = this.midpoint(leftEar, rightEar)
-
     const faceWidth = this.calculateFaceWidth(
       leftEyePoint,
       rightEyePoint,
@@ -91,34 +103,38 @@ class FaceFoundationEngine {
       shoulderWidth
     )
 
-    const yawScore = this.calculateYawScore({
+    const rawYawScore = this.calculateYawScore({
       nose,
       eyeMid,
       shoulderMid,
-      shoulderWidth,
       faceWidth,
       leftEar,
       rightEar,
     })
 
-    const pitchScore = this.calculatePitchScore({
+    const rawPitchScore = this.calculatePitchScore({
       nose,
       eyeMid,
-      earMid,
       mouthMid,
       shoulderMid,
-      shoulderWidth,
       faceWidth,
-      poseSummary,
+      shoulderWidth,
     })
 
-    const rollScore = this.calculateRollScore(leftEyePoint, rightEyePoint)
+    const rawRollScore = this.calculateRollScore(leftEyePoint, rightEyePoint)
 
-    const yaw = this.classifyYaw(yawScore)
-    const pitch = this.classifyPitch(pitchScore)
-    const roll = this.classifyRoll(rollScore)
+    const smoothedScores = this.smoothScores({
+      pitchScore: rawPitchScore,
+      yawScore: rawYawScore,
+      rollScore: rawRollScore,
+    })
+
+    const yaw = this.classifyYaw(smoothedScores.yawScore)
+    const pitch = this.classifyPitch(smoothedScores.pitchScore)
+    const roll = this.classifyRoll(smoothedScores.rollScore)
     const orientation = this.getOrientationLabel(pitch, yaw)
     const observations = this.createHeadObservations(pitch, yaw)
+
     const confidence = this.calculateConfidence(
       visibleHeadLandmarks.length,
       poseSummary,
@@ -136,9 +152,15 @@ class FaceFoundationEngine {
         pitch,
         yaw,
         roll,
-        pitchScore: Number(pitchScore.toFixed(3)),
-        yawScore: Number(yawScore.toFixed(3)),
-        rollScore: Number(rollScore.toFixed(3)),
+
+        pitchScore: Number(smoothedScores.pitchScore.toFixed(3)),
+        yawScore: Number(smoothedScores.yawScore.toFixed(3)),
+        rollScore: Number(smoothedScores.rollScore.toFixed(3)),
+
+        rawPitchScore: Number(rawPitchScore.toFixed(3)),
+        rawYawScore: Number(rawYawScore.toFixed(3)),
+        rawRollScore: Number(rawRollScore.toFixed(3)),
+
         faceWidth: Number(faceWidth.toFixed(3)),
         shoulderWidth: Number(shoulderWidth.toFixed(3)),
         orientation,
@@ -153,7 +175,6 @@ class FaceFoundationEngine {
     nose,
     eyeMid,
     shoulderMid,
-    shoulderWidth,
     faceWidth,
     leftEar,
     rightEar,
@@ -162,14 +183,14 @@ class FaceFoundationEngine {
       ? eyeMid.x
       : shoulderMid?.x
 
-    const scale = Math.max(0.01, faceWidth || shoulderWidth * 0.25)
+    const scale = Math.max(0.01, faceWidth)
     const noseOffset = ((nose?.x || 0) - (referenceX || 0)) / scale
 
     const leftEarVisibility = this.visibility(leftEar)
     const rightEarVisibility = this.visibility(rightEar)
 
     // Ear visibility becomes useful when one side of the head turns away.
-    const earVisibilityBalance = (rightEarVisibility - leftEarVisibility) * 0.25
+    const earVisibilityBalance = (rightEarVisibility - leftEarVisibility) * 0.18
 
     return noseOffset + earVisibilityBalance
   }
@@ -177,40 +198,33 @@ class FaceFoundationEngine {
   calculatePitchScore({
     nose,
     eyeMid,
-    earMid,
     mouthMid,
     shoulderMid,
-    shoulderWidth,
     faceWidth,
-    poseSummary,
+    shoulderWidth,
   }) {
-    const scale = Math.max(0.01, shoulderWidth)
-    const headHeightRatio = ((shoulderMid?.y || 0) - (nose?.y || 0)) / scale
+    const scale = Math.max(0.01, faceWidth || shoulderWidth * 0.25)
 
-    const noseEyeRatio = Number.isFinite(eyeMid?.y)
-      ? ((nose?.y || 0) - eyeMid.y) / Math.max(0.01, faceWidth)
+    const noseToEye = Number.isFinite(eyeMid?.y)
+      ? ((eyeMid.y || 0) - (nose?.y || 0)) / scale
       : 0
 
-    const noseMouthRatio = Number.isFinite(mouthMid?.y)
-      ? (mouthMid.y - (nose?.y || 0)) / Math.max(0.01, faceWidth)
+    const noseToMouth = Number.isFinite(mouthMid?.y)
+      ? ((mouthMid.y || 0) - (nose?.y || 0)) / scale
       : 0
 
-    const noseEarRatio = Number.isFinite(earMid?.y)
-      ? (earMid.y - (nose?.y || 0)) / Math.max(0.01, faceWidth)
+    const noseToShoulder = Number.isFinite(shoulderMid?.y)
+      ? ((shoulderMid.y || 0) - (nose?.y || 0)) / Math.max(0.01, shoulderWidth)
       : 0
 
-    const upperBodyVisibleAdjustment = poseSummary?.bodyVisible ? 0.08 : 0
-
-    // Positive values indicate the nose/head has moved higher relative to the body.
-    // This is deliberately more sensitive than v0.11.0 because MediaPipe pose
-    // landmarks do not provide full 3D face mesh detail.
-    return (
-      headHeightRatio +
-      noseEarRatio * 0.08 +
-      noseMouthRatio * 0.04 -
-      noseEyeRatio * 0.06 +
-      upperBodyVisibleAdjustment
-    )
+    /*
+     * Positive pitch means head raised.
+     * Negative pitch means head lowered.
+     *
+     * This is intentionally relative, not absolute, because camera angle,
+     * body height and distance from camera all affect MediaPipe pose landmarks.
+     */
+    return noseToShoulder * 0.35 + noseToMouth * 0.12 - noseToEye * 0.08 - 0.28
   }
 
   calculateRollScore(leftEye, rightEye) {
@@ -221,21 +235,35 @@ class FaceFoundationEngine {
     return (leftEye.y || 0) - (rightEye.y || 0)
   }
 
+  smoothScores(scores) {
+    this.history.push(scores)
+
+    if (this.history.length > HEAD_THRESHOLDS.smoothingFrames) {
+      this.history.shift()
+    }
+
+    return {
+      pitchScore: this.average(this.history.map((item) => item.pitchScore)),
+      yawScore: this.average(this.history.map((item) => item.yawScore)),
+      rollScore: this.average(this.history.map((item) => item.rollScore)),
+    }
+  }
+
   classifyYaw(score) {
-    if (score <= -0.08) return 'left'
-    if (score >= 0.08) return 'right'
+    if (score <= HEAD_THRESHOLDS.yawLeft) return 'left'
+    if (score >= HEAD_THRESHOLDS.yawRight) return 'right'
     return 'centre'
   }
 
   classifyPitch(score) {
-    if (score >= 0.96) return 'up'
-    if (score <= 0.62) return 'down'
+    if (score >= HEAD_THRESHOLDS.pitchUp) return 'up'
+    if (score <= HEAD_THRESHOLDS.pitchDown) return 'down'
     return 'level'
   }
 
   classifyRoll(score) {
-    if (score <= -0.035) return 'tilted_left'
-    if (score >= 0.035) return 'tilted_right'
+    if (score <= HEAD_THRESHOLDS.rollLeft) return 'tilted_left'
+    if (score >= HEAD_THRESHOLDS.rollRight) return 'tilted_right'
     return 'level'
   }
 
@@ -325,7 +353,7 @@ class FaceFoundationEngine {
     const validValues = values.filter((value) => Number.isFinite(value))
 
     if (!validValues.length) {
-      return Number.NaN
+      return 0
     }
 
     return validValues.reduce((sum, value) => sum + value, 0) / validValues.length
@@ -342,6 +370,10 @@ class FaceFoundationEngine {
     return Boolean(landmark) && this.visibility(landmark) >= 0.35
   }
 
+  reset() {
+    this.history = []
+  }
+
   emptyResult(message) {
     return {
       status: 'not_available',
@@ -356,6 +388,9 @@ class FaceFoundationEngine {
         pitchScore: 0,
         yawScore: 0,
         rollScore: 0,
+        rawPitchScore: 0,
+        rawYawScore: 0,
+        rawRollScore: 0,
         faceWidth: 0,
         shoulderWidth: 0,
         orientation: 'Unknown',

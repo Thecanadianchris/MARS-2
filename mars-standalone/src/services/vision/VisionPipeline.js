@@ -21,7 +21,7 @@
  * - Produce a structured vision result for the UI
  *
  * Version:
- * v0.11.0
+ * v0.11.0b
  *
  * Date Code:
  * 280626
@@ -198,6 +198,7 @@ class VisionPipeline {
   reset() {
     MovementAnalysisService.reset()
     BehaviourHistoryEngine.reset()
+    FaceFoundationEngine.reset()
   }
 
   errorResult(message) {
