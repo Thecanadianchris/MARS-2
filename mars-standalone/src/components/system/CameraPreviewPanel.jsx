@@ -10,14 +10,14 @@
  * continuous monitoring through the MARS Vision Pipeline.
  *
  * Version:
- * v0.11.2
+ * v0.11.4
  *
  * Date Code:
- * 280626
+ * 290626
  * ==========================================================
  */
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import CameraService from '@/services/vision/CameraService'
 import VisionService from '@/services/vision/VisionService'
 import FrameCaptureService from '@/services/vision/FrameCaptureService'
@@ -26,6 +26,7 @@ import ContinuousVisionMonitor from '@/services/vision/ContinuousVisionMonitor'
 
 export default function CameraPreviewPanel() {
   const videoRef = useRef(null)
+  const lastResultTimeRef = useRef(null)
 
   const [cameraState, setCameraState] = useState({
     active: false,
@@ -34,6 +35,54 @@ export default function CameraPreviewPanel() {
   })
 
   const [pipelineResult, setPipelineResult] = useState(null)
+  const [diagnostics, setDiagnostics] = useState({
+    framesProcessed: 0,
+    lastUpdateTime: null,
+    averageIntervalMs: 0,
+  })
+
+  const diagnosticSummary = useMemo(() => {
+    const confidence = pipelineResult?.risk?.confidence ?? 0
+    const riskLevel = pipelineResult?.risk?.level ?? 0
+    const observationCount =
+      pipelineResult?.observationStream?.observationCount ?? 0
+
+    return {
+      confidence,
+      riskLevel,
+      observationCount,
+      systemState: cameraState.monitoring
+        ? 'monitoring'
+        : cameraState.active
+          ? 'camera active'
+          : 'idle',
+      lastUpdate: diagnostics.lastUpdateTime
+        ? new Date(diagnostics.lastUpdateTime).toLocaleTimeString()
+        : 'none',
+    }
+  }, [cameraState.active, cameraState.monitoring, diagnostics, pipelineResult])
+
+  const updatePipelineResult = (result) => {
+    const now = Date.now()
+    const previousTime = lastResultTimeRef.current
+    const intervalMs = previousTime ? now - previousTime : 0
+
+    lastResultTimeRef.current = now
+
+    setPipelineResult(result)
+
+    setDiagnostics((current) => ({
+      framesProcessed: current.framesProcessed + 1,
+      lastUpdateTime: now,
+      averageIntervalMs:
+        current.framesProcessed === 0
+          ? intervalMs
+          : Math.round(
+              (current.averageIntervalMs * current.framesProcessed + intervalMs) /
+                (current.framesProcessed + 1)
+            ),
+    }))
+  }
 
   const handleStartCamera = async () => {
     try {
@@ -86,6 +135,13 @@ export default function CameraPreviewPanel() {
     })
 
     setPipelineResult(null)
+    lastResultTimeRef.current = null
+
+    setDiagnostics({
+      framesProcessed: 0,
+      lastUpdateTime: null,
+      averageIntervalMs: 0,
+    })
   }
 
   const handleCaptureFrame = async () => {
@@ -98,9 +154,9 @@ export default function CameraPreviewPanel() {
         activeMode: 'frame_captured',
       })
 
-      setPipelineResult(result)
+      updatePipelineResult(result)
     } catch (error) {
-      setPipelineResult({
+      updatePipelineResult({
         status: 'error',
         provider: 'LOCAL_PIPELINE',
         summary: error.message || 'Frame capture failed.',
@@ -111,7 +167,12 @@ export default function CameraPreviewPanel() {
   const handleStartMonitoring = () => {
     try {
       ContinuousVisionMonitor.start(videoRef.current, (result) => {
-        setPipelineResult(result)
+        updatePipelineResult(result)
+      })
+
+      VisionService.updateStatus({
+        continuousMonitoringEnabled: true,
+        activeMode: 'continuous_monitoring',
       })
 
       setCameraState((current) => ({
@@ -131,6 +192,11 @@ export default function CameraPreviewPanel() {
   const handleStopMonitoring = () => {
     ContinuousVisionMonitor.stop()
 
+    VisionService.updateStatus({
+      continuousMonitoringEnabled: false,
+      activeMode: cameraState.active ? 'camera_preview' : 'idle',
+    })
+
     setCameraState((current) => ({
       ...current,
       monitoring: false,
@@ -141,9 +207,14 @@ export default function CameraPreviewPanel() {
   return (
     <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-4 text-sm text-cyan-100 shadow-lg shadow-cyan-500/10">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-widest text-cyan-300">
-          CAMERA PREVIEW
-        </h2>
+        <div>
+          <h2 className="text-sm font-semibold tracking-widest text-cyan-300">
+            CAMERA PREVIEW
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Live perception stack and developer diagnostics.
+          </p>
+        </div>
 
         <span className="rounded-full bg-cyan-500/10 px-2 py-1 text-xs text-cyan-300">
           {cameraState.monitoring
@@ -169,43 +240,86 @@ export default function CameraPreviewPanel() {
         </div>
       )}
 
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <DiagnosticCard
+          label="System"
+          value={diagnosticSummary.systemState}
+        />
+        <DiagnosticCard
+          label="Frames"
+          value={diagnostics.framesProcessed}
+        />
+        <DiagnosticCard
+          label="Observations"
+          value={diagnosticSummary.observationCount}
+        />
+        <DiagnosticCard
+          label="Confidence"
+          value={`${diagnosticSummary.confidence}%`}
+        />
+        <DiagnosticCard
+          label="Risk"
+          value={`${diagnosticSummary.riskLevel}/10`}
+        />
+        <DiagnosticCard
+          label="Last Update"
+          value={diagnosticSummary.lastUpdate}
+        />
+      </div>
+
       {pipelineResult && (
         <div className="mt-3 rounded-xl border border-cyan-500/10 bg-cyan-500/5 p-3 text-xs text-cyan-100">
-          <div className="mb-2 font-semibold tracking-wide text-cyan-300">
-            VISION PIPELINE RESULT
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="font-semibold tracking-wide text-cyan-300">
+              VISION PIPELINE RESULT
+            </div>
+
+            <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-cyan-300">
+              {pipelineResult.status || 'unknown'}
+            </span>
           </div>
 
-          <ResultRow label="Status" value={pipelineResult.status || 'unknown'} />
-          <ResultRow label="Provider" value={pipelineResult.provider || 'unknown'} />
-
-          {pipelineResult.frame && (
+          <ResultSection title="Core">
+            <ResultRow label="Status" value={pipelineResult.status || 'unknown'} />
+            <ResultRow label="Provider" value={pipelineResult.provider || 'unknown'} />
             <ResultRow
-              label="Frame"
-              value={`${pipelineResult.frame.width} x ${pipelineResult.frame.height}`}
+              label="Average Interval"
+              value={
+                diagnostics.averageIntervalMs
+                  ? `${diagnostics.averageIntervalMs} ms`
+                  : 'waiting'
+              }
             />
-          )}
 
-          {pipelineResult.performance && (
-            <>
-              <ResultRow label="FPS" value={pipelineResult.performance.fps} />
+            {pipelineResult.frame && (
               <ResultRow
-                label="Latency"
-                value={`${pipelineResult.performance.latencyMs} ms`}
+                label="Frame"
+                value={`${pipelineResult.frame.width} x ${pipelineResult.frame.height}`}
               />
-            </>
-          )}
+            )}
+
+            {pipelineResult.performance && (
+              <>
+                <ResultRow label="FPS" value={pipelineResult.performance.fps} />
+                <ResultRow
+                  label="Latency"
+                  value={`${pipelineResult.performance.latencyMs} ms`}
+                />
+              </>
+            )}
+          </ResultSection>
 
           {pipelineResult.detections && (
-            <>
+            <ResultSection title="Detections">
               <ResultRow label="People" value={pipelineResult.detections.people} />
               <ResultRow label="Faces" value={pipelineResult.detections.faces} />
               <ResultRow label="Objects" value={pipelineResult.detections.objects} />
               <ResultRow label="Pose" value={pipelineResult.detections.pose} />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.movement && (
-            <>
+            <ResultSection title="Movement Analysis">
               <ResultRow
                 label="Movement"
                 value={pipelineResult.movement.movement}
@@ -226,11 +340,11 @@ export default function CameraPreviewPanel() {
                 label="Movement Confidence"
                 value={`${pipelineResult.movement.confidence}%`}
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.behaviourHistory && (
-            <>
+            <ResultSection title="Behaviour History">
               <ResultRow
                 label="Behaviour"
                 value={
@@ -266,11 +380,11 @@ export default function CameraPreviewPanel() {
                   pipelineResult.behaviourHistory.durations.stationaryMs / 1000
                 )}s`}
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.behaviourPattern && (
-            <>
+            <ResultSection title="Behaviour Pattern">
               <ResultRow
                 label="Pattern"
                 value={pipelineResult.behaviourPattern.patternDisplay}
@@ -283,11 +397,11 @@ export default function CameraPreviewPanel() {
                 label="Pattern Confidence"
                 value={`${pipelineResult.behaviourPattern.confidence}%`}
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.activityRecognition && (
-            <>
+            <ResultSection title="Activity Recognition">
               <ResultRow
                 label="Activity"
                 value={pipelineResult.activityRecognition.activityDisplay}
@@ -300,11 +414,11 @@ export default function CameraPreviewPanel() {
                 label="Activity Confidence"
                 value={`${pipelineResult.activityRecognition.confidence}%`}
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.faceFoundation && (
-            <>
+            <ResultSection title="Face Foundation">
               <ResultRow
                 label="Face Foundation"
                 value={
@@ -315,31 +429,31 @@ export default function CameraPreviewPanel() {
               />
               <ResultRow
                 label="Head Orientation"
-                value={pipelineResult.faceFoundation.head.orientation}
+                value={pipelineResult.faceFoundation.head?.orientation || 'unknown'}
               />
               <ResultRow
                 label="Head Pitch"
-                value={pipelineResult.faceFoundation.head.pitch}
+                value={pipelineResult.faceFoundation.head?.pitch || 'unknown'}
               />
               <ResultRow
                 label="Head Yaw"
-                value={pipelineResult.faceFoundation.head.yaw}
+                value={pipelineResult.faceFoundation.head?.yaw || 'unknown'}
               />
               <ResultRow
                 label="Head Roll"
-                value={pipelineResult.faceFoundation.head.roll}
+                value={pipelineResult.faceFoundation.head?.roll || 'unknown'}
               />
               <ResultRow
                 label="Pitch Score"
-                value={pipelineResult.faceFoundation.head.pitchScore ?? 0}
+                value={pipelineResult.faceFoundation.head?.pitchScore ?? 0}
               />
               <ResultRow
                 label="Yaw Score"
-                value={pipelineResult.faceFoundation.head.yawScore ?? 0}
+                value={pipelineResult.faceFoundation.head?.yawScore ?? 0}
               />
               <ResultRow
                 label="Roll Score"
-                value={pipelineResult.faceFoundation.head.rollScore ?? 0}
+                value={pipelineResult.faceFoundation.head?.rollScore ?? 0}
               />
               <ResultRow
                 label="Head Confidence"
@@ -353,11 +467,11 @@ export default function CameraPreviewPanel() {
                     .join(', ') || 'none'
                 }
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.observationStream && (
-            <>
+            <ResultSection title="Observation Stream">
               <ResultRow
                 label="Observation Count"
                 value={pipelineResult.observationStream.observationCount}
@@ -368,11 +482,11 @@ export default function CameraPreviewPanel() {
                   pipelineResult.observationStream.labels?.join(', ') || 'none'
                 }
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.personalObservation && (
-            <>
+            <ResultSection title="Personal Observation">
               <ResultRow
                 label="Personal Profile"
                 value={
@@ -405,22 +519,22 @@ export default function CameraPreviewPanel() {
                     .join(', ') || 'none'
                 }
               />
-            </>
+            </ResultSection>
           )}
 
           {pipelineResult.risk && (
-            <>
+            <ResultSection title="Risk">
               <ResultRow label="Risk" value={`${pipelineResult.risk.level} / 10`} />
               <ResultRow label="Risk State" value={pipelineResult.risk.label} />
               <ResultRow
                 label="Confidence"
                 value={`${pipelineResult.risk.confidence}%`}
               />
-            </>
+            </ResultSection>
           )}
 
           <div className="mt-3 border-t border-cyan-500/10 pt-3 text-cyan-200/80">
-            {pipelineResult.summary}
+            {pipelineResult.summary || 'No summary available.'}
           </div>
         </div>
       )}
@@ -473,11 +587,37 @@ export default function CameraPreviewPanel() {
   )
 }
 
+function DiagnosticCard({ label, value }) {
+  return (
+    <div className="rounded-xl border border-cyan-500/10 bg-cyan-500/[0.04] p-2">
+      <div className="text-[10px] uppercase tracking-widest text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 truncate text-xs font-semibold text-cyan-200">
+        {value ?? 'unknown'}
+      </div>
+    </div>
+  )
+}
+
+function ResultSection({ title, children }) {
+  return (
+    <div className="mt-3 border-t border-cyan-500/10 pt-3">
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-cyan-400/80">
+        {title}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  )
+}
+
 function ResultRow({ label, value }) {
   return (
     <div className="flex justify-between gap-4 py-0.5">
       <span className="text-slate-400">{label}</span>
-      <span className="text-right font-medium text-cyan-200">{value}</span>
+      <span className="max-w-[65%] text-right font-medium text-cyan-200">
+        {value ?? 'unknown'}
+      </span>
     </div>
   )
 }

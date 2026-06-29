@@ -1,5 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react'
+/**
+ * ==========================================================
+ * MARS SOFTWARE PROJECT
+ * ----------------------------------------------------------
+ * Component:
+ * VisionPanel
+ *
+ * Purpose:
+ * Live camera bridge and developer diagnostics view for the
+ * MARS Vision stack.
+ *
+ * Version:
+ * v0.11.3
+ *
+ * Date Code:
+ * 290626
+ * ==========================================================
+ */
+
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, CameraOff, RefreshCcw, ScanEye } from 'lucide-react'
+import VisionDiagnosticsPanel from './VisionDiagnosticsPanel'
 
 export default function VisionPanel() {
   const videoRef = useRef(null)
@@ -11,6 +31,7 @@ export default function VisionPanel() {
   const [cameraFacing, setCameraFacing] = useState('environment')
   const [description, setDescription] = useState('')
   const [snapshot, setSnapshot] = useState('')
+  const [lastCaptureTime, setLastCaptureTime] = useState(null)
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -39,9 +60,9 @@ export default function VisionPanel() {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: cameraFacing
+          facingMode: cameraFacing,
         },
-        audio: false
+        audio: false,
       })
 
       streamRef.current = stream
@@ -96,12 +117,56 @@ export default function VisionPanel() {
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     const imageData = canvas.toDataURL('image/jpeg', 0.85)
+    const captureTime = Date.now()
+
     setSnapshot(imageData)
+    setLastCaptureTime(captureTime)
 
     setDescription(
       'Snapshot captured. MARS Vision has a camera frame ready for analysis. In the next upgrade, this image will be sent to a vision AI model so MARS can describe people, objects, rooms, labels and hazards.'
     )
   }
+
+  const visionResult = useMemo(() => {
+    return {
+      personDetected: Boolean(snapshot),
+      bodyState: snapshot ? 'unknown' : 'unknown',
+      movement: active ? 'camera_active' : 'unknown',
+      activity: snapshot ? 'frame_captured' : 'unknown',
+      faceState: 'foundation_ready',
+      confidence: snapshot ? 0.65 : 0,
+      timestamp: lastCaptureTime,
+    }
+  }, [active, snapshot, lastCaptureTime])
+
+  const observation = useMemo(() => {
+    if (!snapshot) {
+      return null
+    }
+
+    return {
+      type: 'camera_frame_captured',
+      personPresent: true,
+      bodyState: 'unknown',
+      movement: active ? 'camera_active' : 'unknown',
+      activity: 'frame_captured',
+      faceState: 'foundation_ready',
+      confidence: 0.65,
+      timestamp: lastCaptureTime,
+    }
+  }, [active, snapshot, lastCaptureTime])
+
+  const personalObservation = useMemo(() => {
+    if (!description) {
+      return null
+    }
+
+    return {
+      summary: 'MARS has captured a camera frame and prepared it for vision analysis.',
+      description,
+      timestamp: lastCaptureTime,
+    }
+  }, [description, lastCaptureTime])
 
   useEffect(() => {
     if (active) {
@@ -209,6 +274,18 @@ export default function VisionPanel() {
           />
         </div>
       )}
+
+      <div className="mt-4">
+        <VisionDiagnosticsPanel
+          visionResult={visionResult}
+          observation={observation}
+          personalObservation={personalObservation}
+          frameStatus={{
+            cameraReady: active,
+            message: active ? 'Camera stream available' : 'Camera stream not ready',
+          }}
+        />
+      </div>
     </div>
   )
 }
