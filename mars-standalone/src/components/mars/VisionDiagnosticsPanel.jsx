@@ -9,7 +9,7 @@
  * Developer diagnostics dashboard for the MARS Vision stack.
  *
  * Version:
- * v0.11.3
+ * v0.12.2
  *
  * Date Code:
  * 290626
@@ -33,6 +33,14 @@ export default function VisionDiagnosticsPanel({
     frameStatus,
   })
 
+  const decisionIntelligence = visionResult?.decisionIntelligence || null
+
+  const context = visionResult?.context || decisionIntelligence?.context || null
+  const decision = visionResult?.decision || decisionIntelligence?.decision || null
+  const priority = visionResult?.priority || decisionIntelligence?.priority || null
+  const recommendation =
+    visionResult?.recommendation || decisionIntelligence?.recommendation || null
+
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-lg">
       <div className="mb-5">
@@ -40,7 +48,7 @@ export default function VisionDiagnosticsPanel({
           Vision Diagnostics
         </h2>
         <p className="mt-1 text-sm text-slate-400">
-          Live developer view of the MARS perception stack.
+          Live developer view of the MARS perception and decision stack.
         </p>
       </div>
 
@@ -56,6 +64,58 @@ export default function VisionDiagnosticsPanel({
           title="Personal Observation"
           {...diagnostics.personalObservation}
         />
+      </div>
+
+      <div className="mt-6">
+        <h3 className="mb-3 text-lg font-semibold text-white">
+          Decision Intelligence
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <VisionDiagnosticsCard
+            title="Context"
+            status={context ? 'active' : 'inactive'}
+            value={context?.label || context?.type || context?.status || 'Waiting'}
+            summary={context?.summary || 'Awaiting live context output.'}
+          />
+
+          <VisionDiagnosticsCard
+            title="Decision"
+            status={decision ? 'active' : 'inactive'}
+            value={decision?.label || decision?.type || decision?.status || 'Waiting'}
+            summary={decision?.summary || 'Awaiting live decision output.'}
+          />
+
+          <VisionDiagnosticsCard
+            title="Priority"
+            status={priority ? 'active' : 'inactive'}
+            value={
+              priority?.label ||
+              priority?.level ||
+              priority?.type ||
+              priority?.status ||
+              'Waiting'
+            }
+            summary={priority?.summary || 'Awaiting live priority output.'}
+          />
+
+          <VisionDiagnosticsCard
+            title="Recommendation"
+            status={recommendation ? 'active' : 'inactive'}
+            value={
+              recommendation?.label ||
+              recommendation?.action ||
+              recommendation?.type ||
+              recommendation?.status ||
+              'Waiting'
+            }
+            summary={
+              recommendation?.summary ||
+              recommendation?.message ||
+              'Awaiting live recommendation output.'
+            }
+          />
+        </div>
       </div>
     </section>
   )

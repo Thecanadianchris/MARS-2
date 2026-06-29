@@ -8,25 +8,11 @@
  * Purpose:
  * Central processing pipeline for camera frames.
  *
- * Responsibilities:
- * - Receive captured camera frames
- * - Run local pose detection
- * - Summarise body posture
- * - Evaluate body state
- * - Run movement analysis
- * - Record short-term behaviour history
- * - Detect short-term behaviour patterns
- * - Recognise simple human activities
- * - Estimate face/head foundation signals
- * - Produce a neutral observation stream
- * - Evaluate personal observation markers
- * - Produce a structured vision result for the UI
- *
  * Version:
- * v0.11.2
+ * v0.12.2
  *
  * Date Code:
- * 280626
+ * 290626
  * ==========================================================
  */
 
@@ -40,6 +26,7 @@ import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
+import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 
 class VisionPipeline {
   async processFrame(frame) {
@@ -140,7 +127,7 @@ class VisionPipeline {
       ),
     }
 
-    const resultBeforePersonalObservation = {
+    const perceptionResult = {
       ...resultWithMovement,
       detections: {
         ...resultWithMovement.detections,
@@ -153,12 +140,10 @@ class VisionPipeline {
       risk: riskBeforePersonalObservation,
     }
 
-    const preliminaryObservationStream = ObservationStreamEngine.evaluate(
-      resultBeforePersonalObservation
-    )
+    const observationStream = ObservationStreamEngine.evaluate(perceptionResult)
 
     const personalObservation = PersonalObservationEngine.evaluate(
-      preliminaryObservationStream
+      observationStream
     )
 
     const calculatedRiskLevel = Math.min(
@@ -172,19 +157,24 @@ class VisionPipeline {
       confidence: riskBeforePersonalObservation.confidence,
     }
 
-    const resultBeforeObservationStream = {
-      ...resultBeforePersonalObservation,
+    const resultBeforeDecision = {
+      ...perceptionResult,
+      observationStream,
       personalObservation,
       risk: finalRisk,
     }
 
-    const observationStream = ObservationStreamEngine.evaluate(
-      resultBeforeObservationStream
+    const decisionIntelligence = this.runDecisionIntelligence(
+      resultBeforeDecision
     )
 
     return {
-      ...resultBeforeObservationStream,
-      observationStream,
+      ...resultBeforeDecision,
+      decisionIntelligence,
+      context: decisionIntelligence.context,
+      decision: decisionIntelligence.decision,
+      priority: decisionIntelligence.priority,
+      recommendation: decisionIntelligence.recommendation,
       summary:
         `${poseResult.summary}\n` +
         `${poseSummary.summary}\n` +
@@ -194,9 +184,38 @@ class VisionPipeline {
         `${behaviourPattern.summary}\n` +
         `${activityRecognition.summary}\n` +
         `${faceFoundation.summary}\n` +
-        `${personalObservation.summary}\n` +
         `${observationStream.summary}\n` +
+        `${personalObservation.summary}\n` +
+        `${decisionIntelligence.summary}\n` +
         `Risk: ${calculatedRiskLevel} / 10`,
+    }
+  }
+
+  runDecisionIntelligence(visionResult) {
+    if (typeof DecisionIntelligenceService.evaluate === 'function') {
+      return DecisionIntelligenceService.evaluate(visionResult)
+    }
+
+    if (typeof DecisionIntelligenceService.process === 'function') {
+      return DecisionIntelligenceService.process(visionResult)
+    }
+
+    if (typeof DecisionIntelligenceService.analyse === 'function') {
+      return DecisionIntelligenceService.analyse(visionResult)
+    }
+
+    if (typeof DecisionIntelligenceService.analyze === 'function') {
+      return DecisionIntelligenceService.analyze(visionResult)
+    }
+
+    return {
+      status: 'warning',
+      context: null,
+      decision: null,
+      priority: null,
+      recommendation: null,
+      summary:
+        'Decision Intelligence Service exists but no supported execution method was found.',
     }
   }
 
@@ -214,9 +233,7 @@ class VisionPipeline {
     ]
 
     if (behaviourHistory?.sampleCount > 1) {
-      confidenceValues.push(
-        Math.min(100, behaviourHistory.sampleCount * 5)
-      )
+      confidenceValues.push(Math.min(100, behaviourHistory.sampleCount * 5))
     }
 
     if (behaviourPattern?.confidence > 0) {
@@ -274,6 +291,11 @@ class VisionPipeline {
       faceFoundation: null,
       observationStream: null,
       personalObservation: null,
+      decisionIntelligence: null,
+      context: null,
+      decision: null,
+      priority: null,
+      recommendation: null,
       risk: {
         level: 0,
         label: 'unknown',
