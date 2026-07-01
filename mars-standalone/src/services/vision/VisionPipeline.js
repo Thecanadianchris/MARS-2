@@ -9,10 +9,10 @@
  * Central processing pipeline for camera frames.
  *
  * Version:
- * v0.12.2
+ * v0.12.3
  *
  * Date Code:
- * 290626
+ * 010726
  * ==========================================================
  */
 
@@ -29,27 +29,32 @@ import PersonalObservationEngine from './PersonalObservationEngine'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 
 class VisionPipeline {
+  constructor() {
+    this.lastFrameProcessedAt = null
+    this.lastLatencyMs = null
+    this.averageLatencyMs = null
+    this.measuredFps = 0
+    this.processedFrameCount = 0
+  }
+
   async processFrame(frame) {
     if (!frame) {
       return this.errorResult('No frame supplied to VisionPipeline.')
     }
 
     const startTime = performance.now()
+    const now = Date.now()
 
     const poseResult = await PoseDetectionService.detectPose(frame)
     const poseSummary = PoseSummaryService.summarise(poseResult)
     const bodyState = BodyStateEngine.evaluate(poseSummary)
 
-    const baseRiskLevel = 0
-    const bodyRiskLevel = Math.min(
-      10,
-      baseRiskLevel + bodyState.riskModifier
-    )
+    const bodyRiskLevel = this.calculateRiskLevel([bodyState.riskModifier])
 
     const baseResult = {
       status: 'success',
       provider: 'LOCAL_PIPELINE',
-      timestamp: Date.now(),
+      timestamp: now,
 
       frame: {
         width: frame.width,
@@ -57,10 +62,7 @@ class VisionPipeline {
         timestamp: frame.timestamp,
       },
 
-      performance: {
-        fps: 30,
-        latencyMs: Math.round(performance.now() - startTime),
-      },
+      performance: this.createPendingPerformanceMetrics(),
 
       detections: {
         people: poseResult.poseDetected ? 1 : 0,
@@ -98,25 +100,17 @@ class VisionPipeline {
       poseSummary
     )
 
+    const prePersonalRiskLevel = this.calculateRiskLevel([
+      bodyState.riskModifier,
+      behaviourHistory.riskModifier,
+      behaviourPattern.riskModifier,
+      activityRecognition.riskModifier,
+      faceFoundation.riskModifier,
+    ])
+
     const riskBeforePersonalObservation = {
-      level: Math.min(
-        10,
-        bodyRiskLevel +
-          behaviourHistory.riskModifier +
-          behaviourPattern.riskModifier +
-          activityRecognition.riskModifier +
-          faceFoundation.riskModifier
-      ),
-      label: this.getRiskLabel(
-        Math.min(
-          10,
-          bodyRiskLevel +
-            behaviourHistory.riskModifier +
-            behaviourPattern.riskModifier +
-            activityRecognition.riskModifier +
-            faceFoundation.riskModifier
-        )
-      ),
+      level: prePersonalRiskLevel,
+      label: this.getRiskLabel(prePersonalRiskLevel),
       confidence: this.calculateConfidence(
         bodyState,
         movement,
@@ -146,10 +140,10 @@ class VisionPipeline {
       observationStream
     )
 
-    const calculatedRiskLevel = Math.min(
-      10,
-      riskBeforePersonalObservation.level + personalObservation.riskModifier
-    )
+    const calculatedRiskLevel = this.calculateRiskLevel([
+      prePersonalRiskLevel,
+      personalObservation.riskModifier,
+    ])
 
     const finalRisk = {
       level: calculatedRiskLevel,
@@ -168,27 +162,85 @@ class VisionPipeline {
       resultBeforeDecision
     )
 
+    const performanceMetrics = this.updatePerformanceMetrics(startTime)
+
     return {
       ...resultBeforeDecision,
+      performance: performanceMetrics,
       decisionIntelligence,
       context: decisionIntelligence.context,
       decision: decisionIntelligence.decision,
       priority: decisionIntelligence.priority,
       recommendation: decisionIntelligence.recommendation,
-      summary:
-        `${poseResult.summary}\n` +
-        `${poseSummary.summary}\n` +
-        `${bodyState.summary}\n` +
-        `${movement.summary}\n` +
-        `${behaviourHistory.summary}\n` +
-        `${behaviourPattern.summary}\n` +
-        `${activityRecognition.summary}\n` +
-        `${faceFoundation.summary}\n` +
-        `${observationStream.summary}\n` +
-        `${personalObservation.summary}\n` +
-        `${decisionIntelligence.summary}\n` +
+      summary: this.buildSummary([
+        poseResult.summary,
+        poseSummary.summary,
+        bodyState.summary,
+        movement.summary,
+        behaviourHistory.summary,
+        behaviourPattern.summary,
+        activityRecognition.summary,
+        faceFoundation.summary,
+        observationStream.summary,
+        personalObservation.summary,
+        decisionIntelligence.summary,
+        `Performance: ${performanceMetrics.fps} FPS, ${performanceMetrics.latencyMs} ms latency`,
         `Risk: ${calculatedRiskLevel} / 10`,
+      ]),
     }
+  }
+
+  createPendingPerformanceMetrics() {
+    return {
+      fps: this.measuredFps,
+      latencyMs: this.lastLatencyMs || 0,
+      averageLatencyMs: this.averageLatencyMs,
+      processedFrameCount: this.processedFrameCount,
+    }
+  }
+
+  updatePerformanceMetrics(startTime) {
+    const completedAt = performance.now()
+    const latencyMs = Math.round(completedAt - startTime)
+
+    if (this.lastFrameProcessedAt) {
+      const frameIntervalMs = completedAt - this.lastFrameProcessedAt
+
+      if (frameIntervalMs > 0) {
+        this.measuredFps = Math.round(1000 / frameIntervalMs)
+      }
+    }
+
+    this.lastFrameProcessedAt = completedAt
+    this.lastLatencyMs = latencyMs
+    this.processedFrameCount += 1
+
+    if (this.averageLatencyMs === null) {
+      this.averageLatencyMs = latencyMs
+    } else {
+      this.averageLatencyMs = Math.round(
+        this.averageLatencyMs * 0.8 + latencyMs * 0.2
+      )
+    }
+
+    return {
+      fps: this.measuredFps,
+      latencyMs,
+      averageLatencyMs: this.averageLatencyMs,
+      processedFrameCount: this.processedFrameCount,
+    }
+  }
+
+  calculateRiskLevel(riskModifiers) {
+    const totalRisk = riskModifiers.reduce((total, modifier) => {
+      return total + (modifier || 0)
+    }, 0)
+
+    return Math.min(10, Math.max(0, totalRisk))
+  }
+
+  buildSummary(summaryLines) {
+    return summaryLines.filter(Boolean).join('\n')
   }
 
   runDecisionIntelligence(visionResult) {
@@ -262,6 +314,12 @@ class VisionPipeline {
   }
 
   reset() {
+    this.lastFrameProcessedAt = null
+    this.lastLatencyMs = null
+    this.averageLatencyMs = null
+    this.measuredFps = 0
+    this.processedFrameCount = 0
+
     MovementAnalysisService.reset()
     BehaviourHistoryEngine.reset()
     FaceFoundationEngine.reset()
@@ -274,7 +332,12 @@ class VisionPipeline {
       provider: 'LOCAL_PIPELINE',
       timestamp: Date.now(),
       frame: null,
-      performance: null,
+      performance: {
+        fps: 0,
+        latencyMs: 0,
+        averageLatencyMs: this.averageLatencyMs,
+        processedFrameCount: this.processedFrameCount,
+      },
       detections: {
         people: 0,
         faces: 0,
