@@ -9,7 +9,7 @@
  * Developer diagnostics dashboard for the MARS Vision stack.
  *
  * Version:
- * v0.12.2
+ * v0.13.0
  *
  * Date Code:
  * 290626
@@ -59,6 +59,7 @@ export default function VisionDiagnosticsPanel({
         <VisionDiagnosticsCard title="Movement" {...diagnostics.movement} />
         <VisionDiagnosticsCard title="Activity" {...diagnostics.activity} />
         <VisionDiagnosticsCard title="Face" {...diagnostics.face} />
+        <VisionDiagnosticsCard title="Identity" {...diagnostics.identity} />
         <VisionDiagnosticsCard title="Observation" {...diagnostics.observation} />
         <VisionDiagnosticsCard
           title="Personal Observation"

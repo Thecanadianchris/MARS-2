@@ -9,7 +9,7 @@
  * Vitest smoke test for the complete Vision Pipeline.
  *
  * Version:
- * v0.12.4
+ * v0.13.0
  *
  * Date Code:
  * 010726
@@ -49,6 +49,9 @@ describe('VisionPipeline Smoke Test', () => {
     expect(result.behaviourPattern).toBeDefined()
     expect(result.activityRecognition).toBeDefined()
     expect(result.faceFoundation).toBeDefined()
+    expect(result.identity).toBeDefined()
+    expect(result.identity.observations).toBeInstanceOf(Array)
+    expect(result.identity.diagnostics).toBeDefined()
     expect(result.observationStream).toBeDefined()
     expect(result.personalObservation).toBeDefined()
     expect(result.decisionIntelligence).toBeDefined()

@@ -1,0 +1,110 @@
+mars-standalone-clean/
+├── docs/
+│   └── engineering/
+│       └── CLEAN_STRUCTURE_REVIEW_v0.13.0.md
+├── public/
+├── server/
+├── src/
+│   ├── components/
+│   │   ├── mars/
+│   │   │   ├── BuildBreakdown.jsx
+│   │   │   ├── ChatPanel.jsx
+│   │   │   ├── DashboardPanel.jsx
+│   │   │   ├── EyesDisplay.jsx
+│   │   │   ├── FeaturesGrid.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   ├── HeroSection.jsx
+│   │   │   ├── KeySpecs.jsx
+│   │   │   ├── marsConfig.jsx
+│   │   │   ├── memory.js
+│   │   │   ├── MemoryPanel.jsx
+│   │   │   ├── MessageBubble.jsx
+│   │   │   ├── MK2Roadmap.jsx
+│   │   │   ├── ModelSelector.jsx
+│   │   │   ├── ModularDesign.jsx
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── QuickCommands.jsx
+│   │   │   ├── VisionDiagnosticsCard.jsx
+│   │   │   ├── VisionDiagnosticsPanel.jsx
+│   │   │   ├── VisionPanel.jsx
+│   │   │   └── VoiceInput.jsx
+│   │   ├── system/
+│   │   │   ├── AIStatusPanel.jsx
+│   │   │   ├── CameraPreviewPanel.jsx
+│   │   │   └── VisionStatusPanel.jsx
+│   │   ├── ui/
+│   │   └── ScrollToTop.jsx
+│   ├── config/
+│   ├── core/
+│   │   └── observations/
+│   │       └── ObservationRegistry.js
+│   ├── hooks/
+│   │   ├── use-mobile.jsx
+│   │   └── useVisionDiagnostics.js
+│   ├── lib/
+│   │   └── utils.js
+│   ├── models/
+│   │   ├── Decision.js
+│   │   ├── DecisionContext.js
+│   │   ├── Priority.js
+│   │   └── Recommendation.js
+│   ├── pages/
+│   │   ├── Control.jsx
+│   │   └── Home.jsx
+│   ├── services/
+│   │   ├── ai/
+│   │   │   ├── AIStatusService.js
+│   │   │   ├── CloudProvider.js
+│   │   │   ├── HomeProvider.js
+│   │   │   ├── LocalAIDecisionService.js
+│   │   │   └── LocalProvider.js
+│   │   ├── decision/
+│   │   │   ├── ActionRecommendationEngine.js
+│   │   │   ├── ContextEngine.js
+│   │   │   ├── DecisionEngine.js
+│   │   │   ├── DecisionIntelligenceService.js
+│   │   │   └── PriorityEngine.js
+│   │   ├── hardware/
+│   │   ├── identity/
+│   │   │   ├── IdentityDiagnosticsService.js
+│   │   │   ├── IdentityEngine.js
+│   │   │   ├── IdentityObservationBuilder.js
+│   │   │   └── PersonRegistry.js
+│   │   ├── memory/
+│   │   ├── robot/
+│   │   ├── system/
+│   │   ├── vision/
+│   │   │   ├── ActivityRecognitionEngine.js
+│   │   │   ├── BehaviourHistoryEngine.js
+│   │   │   ├── BehaviourPatternEngine.js
+│   │   │   ├── BodyStateEngine.js
+│   │   │   ├── CameraService.js
+│   │   │   ├── ContinuousVisionMonitor.js
+│   │   │   ├── FaceFoundationEngine.js
+│   │   │   ├── FrameCaptureService.js
+│   │   │   ├── MovementAnalysisService.js
+│   │   │   ├── ObservationStreamEngine.js
+│   │   │   ├── PersonalObservationEngine.js
+│   │   │   ├── PoseDetectionService.js
+│   │   │   ├── PoseSummaryService.js
+│   │   │   ├── VisionPipeline.js
+│   │   │   └── VisionService.js
+│   │   └── voice/
+│   ├── tests/
+│   │   ├── DecisionIntelligenceSmokeTest.test.js
+│   │   ├── IdentityFoundationSmokeTest.test.js
+│   │   ├── README.md
+│   │   └── VisionPipelineSmokeTest.test.js
+│   ├── types/
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── .gitignore
+├── index.html
+├── jsconfig.json
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── README.md
+├── tailwind.config.js
+└── vite.config.js

@@ -111,31 +111,8 @@ export default function useVisionDiagnostics({
               ? 'warning'
               : 'neutral',
         subtitle: identity
-          ? `Identity: ${identity.status || 'not_available'} · Confidence: ${Math.round(identity.confidence || 0)}% · Quality: ${identity.faceQuality?.label || 'unknown'}`
+          ? `Identity: ${identity.status || 'not_available'} · Confidence: ${Math.round(identity.confidence || 0)}%`
           : 'Identity Foundation output',
-      },
-
-      identityQuality: {
-        value: identity?.faceQuality?.label || 'No quality',
-        status:
-          identity?.faceQuality?.label === 'good'
-            ? 'good'
-            : identity?.faceQuality?.label === 'usable'
-              ? 'info'
-              : identity?.faceQuality?.label === 'poor'
-                ? 'warning'
-                : 'neutral',
-        subtitle: identity
-          ? `Face quality score: ${Math.round(identity.faceQuality?.score || 0)}%`
-          : 'Face quality pipeline output',
-      },
-
-      identityTracking: {
-        value: identity?.tracking?.primaryTrackId || 'No track',
-        status: identity?.tracking?.primaryTrackId ? 'info' : 'neutral',
-        subtitle: identity
-          ? `Tracks: ${identity.tracking?.activeTrackCount || 0} · People: ${identity.tracking?.personCount || 0}`
-          : 'Identity tracking output',
       },
 
       observation: {

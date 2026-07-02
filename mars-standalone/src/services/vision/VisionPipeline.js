@@ -9,7 +9,7 @@
  * Central processing pipeline for camera frames.
  *
  * Version:
- * v0.12.3
+ * v0.13.0
  *
  * Date Code:
  * 010726
@@ -26,6 +26,7 @@ import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
+import IdentityEngine from '../identity/IdentityEngine'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 
 class VisionPipeline {
@@ -100,6 +101,15 @@ class VisionPipeline {
       poseSummary
     )
 
+    const identity = IdentityEngine.evaluate({
+      faceFoundation,
+      detectedPeople: this.createIdentityCandidates({
+        poseResult,
+        poseSummary,
+        faceFoundation,
+      }),
+    })
+
     const prePersonalRiskLevel = this.calculateRiskLevel([
       bodyState.riskModifier,
       behaviourHistory.riskModifier,
@@ -131,6 +141,7 @@ class VisionPipeline {
       behaviourPattern,
       activityRecognition,
       faceFoundation,
+      identity,
       risk: riskBeforePersonalObservation,
     }
 
@@ -181,6 +192,7 @@ class VisionPipeline {
         behaviourPattern.summary,
         activityRecognition.summary,
         faceFoundation.summary,
+        identity.summary,
         observationStream.summary,
         personalObservation.summary,
         decisionIntelligence.summary,
@@ -188,6 +200,24 @@ class VisionPipeline {
         `Risk: ${calculatedRiskLevel} / 10`,
       ]),
     }
+  }
+
+  createIdentityCandidates({ poseResult, poseSummary, faceFoundation }) {
+    if (!faceFoundation?.faceDetected) {
+      return []
+    }
+
+    return [
+      {
+        id: null,
+        name: null,
+        confidence: faceFoundation.confidence || poseSummary?.confidence || 0,
+        source: 'vision_pipeline_face_foundation',
+        faceDetected: true,
+        headOrientation: faceFoundation.head?.orientation || 'unknown',
+        poseDetected: Boolean(poseResult?.poseDetected),
+      },
+    ]
   }
 
   createPendingPerformanceMetrics() {
@@ -352,6 +382,7 @@ class VisionPipeline {
       behaviourPattern: null,
       activityRecognition: null,
       faceFoundation: null,
+      identity: null,
       observationStream: null,
       personalObservation: null,
       decisionIntelligence: null,

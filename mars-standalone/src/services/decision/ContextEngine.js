@@ -10,7 +10,7 @@
  * decision-ready context object.
  *
  * Version:
- * v0.12.1
+ * v0.13.0
  *
  * Date Code:
  * 290626
@@ -155,9 +155,13 @@ class ContextEngine {
     const profileName =
       pipelineResult.personalObservation?.profile?.displayName || 'Unknown profile'
 
+    const identityName =
+      pipelineResult.identity?.person?.name ||
+      (pipelineResult.identity?.status === 'unknown' ? 'Unknown identity' : 'No identity')
+
     const riskText = pipelineResult.risk?.label || 'normal'
 
-    return `${personText}. Body ${bodyText}. Movement ${movementText}. Activity ${activityText}. Profile ${profileName}. Risk ${riskText}.`
+    return `${personText}. Body ${bodyText}. Movement ${movementText}. Activity ${activityText}. Identity ${identityName}. Profile ${profileName}. Risk ${riskText}.`
   }
 
   createEmptyContext(pipelineResult) {
@@ -207,6 +211,20 @@ class ContextEngine {
         headYaw: 'unknown',
         headRoll: 'unknown',
         confidence: 0,
+      },
+      identity: {
+        status: 'not_available',
+        known: false,
+        unknown: false,
+        personId: null,
+        personName: null,
+        confidence: 0,
+        tracking: {
+          enabled: false,
+          personCount: 0,
+          multiPerson: false,
+        },
+        source: 'none',
       },
       personal: {
         profileId: 'unknown',

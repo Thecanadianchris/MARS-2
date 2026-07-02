@@ -14,7 +14,7 @@
  * diagnose or make medical conclusions.
  *
  * Version:
- * v0.11.2
+ * v0.13.0
  *
  * Date Code:
  * 280626
@@ -71,6 +71,18 @@ export const OBSERVATIONS = {
   PERSONAL_MARKER_INACTIVE: 'personal_marker_inactive',
   PERSONAL_PROFILE_ACTIVE: 'personal_profile_active',
   PERSONAL_PROFILE_UNKNOWN: 'personal_profile_unknown',
+
+  IDENTITY_KNOWN: 'identity_known',
+  IDENTITY_UNKNOWN: 'identity_unknown',
+  IDENTITY_NOT_AVAILABLE: 'identity_not_available',
+  IDENTITY_CONFIDENCE_LOW: 'identity_confidence_low',
+  IDENTITY_CONFIDENCE_MEDIUM: 'identity_confidence_medium',
+  IDENTITY_CONFIDENCE_HIGH: 'identity_confidence_high',
+  MULTI_PERSON_IDENTITY_TRACKING: 'multi_person_identity_tracking',
+  FACE_QUALITY_GOOD: 'face_quality_good',
+  FACE_QUALITY_USABLE: 'face_quality_usable',
+  FACE_QUALITY_POOR: 'face_quality_poor',
+  IDENTITY_TRACK_ACTIVE: 'identity_track_active',
 
   RISK_NORMAL: 'risk_normal',
   RISK_LOW: 'risk_low',
@@ -129,6 +141,18 @@ export const OBSERVATION_LABELS = {
   [OBSERVATIONS.PERSONAL_MARKER_INACTIVE]: 'Personal marker inactive',
   [OBSERVATIONS.PERSONAL_PROFILE_ACTIVE]: 'Personal profile active',
   [OBSERVATIONS.PERSONAL_PROFILE_UNKNOWN]: 'Personal profile unknown',
+
+  [OBSERVATIONS.IDENTITY_KNOWN]: 'Identity known',
+  [OBSERVATIONS.IDENTITY_UNKNOWN]: 'Identity unknown',
+  [OBSERVATIONS.IDENTITY_NOT_AVAILABLE]: 'Identity not available',
+  [OBSERVATIONS.IDENTITY_CONFIDENCE_LOW]: 'Identity confidence low',
+  [OBSERVATIONS.IDENTITY_CONFIDENCE_MEDIUM]: 'Identity confidence medium',
+  [OBSERVATIONS.IDENTITY_CONFIDENCE_HIGH]: 'Identity confidence high',
+  [OBSERVATIONS.MULTI_PERSON_IDENTITY_TRACKING]: 'Multi-person identity tracking',
+  [OBSERVATIONS.FACE_QUALITY_GOOD]: 'Face quality good',
+  [OBSERVATIONS.FACE_QUALITY_USABLE]: 'Face quality usable',
+  [OBSERVATIONS.FACE_QUALITY_POOR]: 'Face quality poor',
+  [OBSERVATIONS.IDENTITY_TRACK_ACTIVE]: 'Identity track active',
 
   [OBSERVATIONS.RISK_NORMAL]: 'Risk normal',
   [OBSERVATIONS.RISK_LOW]: 'Risk low',
