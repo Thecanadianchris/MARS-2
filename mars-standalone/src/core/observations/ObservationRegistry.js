@@ -14,7 +14,7 @@
  * diagnose or make medical conclusions.
  *
  * Version:
- * v0.11.2
+ * v0.13.0
  *
  * Date Code:
  * 280626
@@ -71,6 +71,18 @@ export const OBSERVATIONS = {
   PERSONAL_MARKER_INACTIVE: 'personal_marker_inactive',
   PERSONAL_PROFILE_ACTIVE: 'personal_profile_active',
   PERSONAL_PROFILE_UNKNOWN: 'personal_profile_unknown',
+
+  IDENTITY_NO_PERSON: 'identity_no_person',
+  IDENTITY_PERSON_DETECTED: 'identity_person_detected',
+  IDENTITY_TRACKING: 'identity_tracking',
+  IDENTITY_SEARCHING: 'identity_searching',
+  IDENTITY_UNKNOWN: 'identity_unknown',
+  IDENTITY_PENDING_PROFILE: 'identity_pending_profile',
+  IDENTITY_GUEST: 'identity_guest',
+  IDENTITY_KNOWN: 'identity_known',
+  IDENTITY_TRUSTED_USER: 'identity_trusted_user',
+  IDENTITY_PROTECTED_USER: 'identity_protected_user',
+  IDENTITY_BLOCKED: 'identity_blocked',
 
   RISK_NORMAL: 'risk_normal',
   RISK_LOW: 'risk_low',
@@ -129,6 +141,18 @@ export const OBSERVATION_LABELS = {
   [OBSERVATIONS.PERSONAL_MARKER_INACTIVE]: 'Personal marker inactive',
   [OBSERVATIONS.PERSONAL_PROFILE_ACTIVE]: 'Personal profile active',
   [OBSERVATIONS.PERSONAL_PROFILE_UNKNOWN]: 'Personal profile unknown',
+
+  [OBSERVATIONS.IDENTITY_NO_PERSON]: 'Identity no person',
+  [OBSERVATIONS.IDENTITY_PERSON_DETECTED]: 'Identity person detected',
+  [OBSERVATIONS.IDENTITY_TRACKING]: 'Identity tracking',
+  [OBSERVATIONS.IDENTITY_SEARCHING]: 'Identity searching',
+  [OBSERVATIONS.IDENTITY_UNKNOWN]: 'Identity unknown',
+  [OBSERVATIONS.IDENTITY_PENDING_PROFILE]: 'Identity pending profile',
+  [OBSERVATIONS.IDENTITY_GUEST]: 'Identity guest',
+  [OBSERVATIONS.IDENTITY_KNOWN]: 'Identity known',
+  [OBSERVATIONS.IDENTITY_TRUSTED_USER]: 'Identity trusted user',
+  [OBSERVATIONS.IDENTITY_PROTECTED_USER]: 'Identity protected user',
+  [OBSERVATIONS.IDENTITY_BLOCKED]: 'Identity blocked',
 
   [OBSERVATIONS.RISK_NORMAL]: 'Risk normal',
   [OBSERVATIONS.RISK_LOW]: 'Risk low',

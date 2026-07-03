@@ -9,7 +9,7 @@
  * Central processing pipeline for camera frames.
  *
  * Version:
- * v0.12.3
+ * v0.13.0
  *
  * Date Code:
  * 010726
@@ -26,6 +26,7 @@ import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
+import IdentityEngine from '../identity/IdentityEngine'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 
 class VisionPipeline {
@@ -136,8 +137,14 @@ class VisionPipeline {
 
     const observationStream = ObservationStreamEngine.evaluate(perceptionResult)
 
+    const identity = IdentityEngine.evaluate({
+      ...perceptionResult,
+      observationStream,
+    })
+
     const personalObservation = PersonalObservationEngine.evaluate(
-      observationStream
+      observationStream,
+      { profileId: identity.profile?.id === 'finley' ? 'finley' : undefined }
     )
 
     const calculatedRiskLevel = this.calculateRiskLevel([
@@ -154,6 +161,7 @@ class VisionPipeline {
     const resultBeforeDecision = {
       ...perceptionResult,
       observationStream,
+      identity,
       personalObservation,
       risk: finalRisk,
     }
@@ -182,6 +190,7 @@ class VisionPipeline {
         activityRecognition.summary,
         faceFoundation.summary,
         observationStream.summary,
+        identity.summary,
         personalObservation.summary,
         decisionIntelligence.summary,
         `Performance: ${performanceMetrics.fps} FPS, ${performanceMetrics.latencyMs} ms latency`,
@@ -324,6 +333,7 @@ class VisionPipeline {
     BehaviourHistoryEngine.reset()
     FaceFoundationEngine.reset()
     PersonalObservationEngine.reset()
+    IdentityEngine.reset()
   }
 
   errorResult(message) {
@@ -353,6 +363,7 @@ class VisionPipeline {
       activityRecognition: null,
       faceFoundation: null,
       observationStream: null,
+      identity: null,
       personalObservation: null,
       decisionIntelligence: null,
       context: null,

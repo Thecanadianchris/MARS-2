@@ -10,7 +10,7 @@
  * decision-ready context object.
  *
  * Version:
- * v0.12.1
+ * v0.13.0
  *
  * Date Code:
  * 290626
@@ -110,6 +110,21 @@ class ContextEngine {
         markers: pipelineResult.personalObservation?.markers || [],
       },
 
+      identity: {
+        state: pipelineResult.identity?.state || 'unknown',
+        confidence: pipelineResult.identity?.confidence || 0,
+        profileId: pipelineResult.identity?.profile?.id || 'unknown',
+        displayName: pipelineResult.identity?.profile?.displayName || 'Unknown',
+        userType: pipelineResult.identity?.userType || 'unknown',
+        known: Boolean(pipelineResult.identity?.known),
+        trusted: Boolean(pipelineResult.identity?.trusted),
+        protected: Boolean(pipelineResult.identity?.protected),
+        blocked: Boolean(pipelineResult.identity?.blocked),
+        requiresTrustedUserConfirmation: Boolean(
+          pipelineResult.identity?.requiresTrustedUserConfirmation
+        ),
+      },
+
       risk: {
         level: pipelineResult.risk?.level || 0,
         label: pipelineResult.risk?.label || 'normal',
@@ -155,9 +170,14 @@ class ContextEngine {
     const profileName =
       pipelineResult.personalObservation?.profile?.displayName || 'Unknown profile'
 
+    const identityText =
+      pipelineResult.identity?.profile?.displayName ||
+      pipelineResult.identity?.state ||
+      'Unknown identity'
+
     const riskText = pipelineResult.risk?.label || 'normal'
 
-    return `${personText}. Body ${bodyText}. Movement ${movementText}. Activity ${activityText}. Profile ${profileName}. Risk ${riskText}.`
+    return `${personText}. Body ${bodyText}. Movement ${movementText}. Activity ${activityText}. Profile ${profileName}. Identity ${identityText}. Risk ${riskText}.`
   }
 
   createEmptyContext(pipelineResult) {
@@ -215,6 +235,18 @@ class ContextEngine {
         activeMarkerCount: 0,
         highestPriority: 'normal',
         markers: [],
+      },
+      identity: {
+        state: 'unknown',
+        confidence: 0,
+        profileId: 'unknown',
+        displayName: 'Unknown',
+        userType: 'unknown',
+        known: false,
+        trusted: false,
+        protected: false,
+        blocked: false,
+        requiresTrustedUserConfirmation: false,
       },
       risk: {
         level: 0,
