@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound, PersonStanding } from 'lucide-react'
+import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound, PersonStanding, BrainCircuit } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
@@ -12,6 +12,7 @@ import CameraPreviewPanel from '@/components/system/CameraPreviewPanel'
 import DiagnosticsPanel from '@/components/diagnostics/DiagnosticsPanel'
 import IdentityPanel from '@/components/identity/IdentityPanel'
 import BehaviourPanel from '@/components/behaviour/BehaviourPanel'
+import DecisionPanel from '@/components/decision/DecisionPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -100,6 +101,8 @@ export default function Control() {
 
         {tab === 'behaviour' && <BehaviourPanel />}
 
+        {tab === 'decision' && <DecisionPanel />}
+
         {tab === 'diagnostics' && <DiagnosticsPanel />}
       </main>
 
@@ -163,6 +166,18 @@ export default function Control() {
           >
             <PersonStanding size={17} />
             <span className="text-[9px] font-mono tracking-wider">BEHAV</span>
+          </button>
+
+          <button
+            onClick={() => setTab('decision')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 ${
+              tab === 'decision'
+                ? 'text-cyan-400'
+                : 'text-white/30 hover:text-white/50'
+            }`}
+          >
+            <BrainCircuit size={17} />
+            <span className="text-[9px] font-mono tracking-wider">DEC</span>
           </button>
 
           <button
