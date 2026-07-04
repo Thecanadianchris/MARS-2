@@ -6,14 +6,15 @@
  * BehaviourPanel
  *
  * Purpose:
- * UI panel for v0.13.6 M2.3 Behaviour Intelligence.
+ * UI panel for v0.13.7a M2.3 Behaviour Intelligence with
+ * EP-012 Live Data Integrity support.
  *
  * Behaviour describes observed activity patterns only.
  * Decision and Notification layers interpret those observations
  * later in the MARS pipeline.
  *
  * Version:
- * v0.13.6
+ * v0.13.8
  * Date Code:
  * 040726
  * ==========================================================
@@ -22,39 +23,24 @@
 import React from 'react'
 import { Activity, Brain, RefreshCcw } from 'lucide-react'
 import useBehaviourIntelligence from '@/hooks/useBehaviourIntelligence'
+import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
 import BehaviourCapabilityCard from './BehaviourCapabilityCard'
 import BehaviourProfileCard from './BehaviourProfileCard'
 import BehaviourStatusCard from './BehaviourStatusCard'
 
 function getPanelBadge(status) {
-  if (status === 'attention') {
-    return 'Attention'
-  }
-
-  if (status === 'review') {
-    return 'Review'
-  }
-
-  if (status === 'watch') {
-    return 'Watch'
-  }
-
+  if (status === 'waiting') return 'Waiting'
+  if (status === 'attention') return 'Attention'
+  if (status === 'review') return 'Review'
+  if (status === 'watch') return 'Watch'
   return 'Ready'
 }
 
 function getPanelBadgeClass(status) {
-  if (status === 'attention') {
-    return 'border-rose-400/40 bg-rose-500/10 text-rose-300'
-  }
-
-  if (status === 'review') {
-    return 'border-amber-400/40 bg-amber-500/10 text-amber-300'
-  }
-
-  if (status === 'watch') {
-    return 'border-cyan-400/40 bg-cyan-500/10 text-cyan-300'
-  }
-
+  if (status === 'waiting') return 'border-amber-400/40 bg-amber-500/10 text-amber-300'
+  if (status === 'attention') return 'border-rose-400/40 bg-rose-500/10 text-rose-300'
+  if (status === 'review') return 'border-amber-400/40 bg-amber-500/10 text-amber-300'
+  if (status === 'watch') return 'border-cyan-400/40 bg-cyan-500/10 text-cyan-300'
   return 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300'
 }
 
@@ -68,16 +54,16 @@ export default function BehaviourPanel() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <Activity size={17} className="text-cyan-300" />
+              <Brain size={17} className="text-cyan-300" />
               <h2 className="font-heading text-lg font-black tracking-[0.08em] text-cyan-300">
                 BEHAVIOUR
               </h2>
-              <span className="text-[9px] font-mono text-cyan-400/60">
+              <span className="text-[9px] font-mono text-cyan-500/60">
                 {behaviour.version}
               </span>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-white/60">
-              M2.3 Behaviour Intelligence describes body position, head direction, movement and inactivity signs.
+              M2.3 Behaviour Intelligence describes observed activity patterns only. It does not diagnose or send alerts.
             </p>
           </div>
 
@@ -97,13 +83,33 @@ export default function BehaviourPanel() {
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-cyan-300">
+              Data State
+            </p>
+            <p className="mt-1 text-xs text-white/50">
+              EP-012 Live Data Integrity: behaviour output must not confuse waiting, live or simulation states.
+            </p>
+          </div>
+          <CapabilityStateBadge state={behaviour.capabilityState} />
+        </div>
+
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+          <p className="text-xs leading-relaxed text-white/60">
+            {behaviour.capabilityState.message}
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-cyan-300">
               Behaviour Simulation
             </p>
             <p className="mt-1 text-xs text-white/50">
-              UI-safe simulator for behaviour foundation without live decision escalation.
+              Developer-only scenarios. Simulation values are not live robot observations.
             </p>
           </div>
 
@@ -122,10 +128,12 @@ export default function BehaviourPanel() {
             <button
               key={scenarioId}
               type="button"
-              onClick={() => behaviour.setScenario(scenarioId)}
+              onClick={() => scenarioId === behaviour.scenarios.WAITING ? behaviour.clearSimulation() : behaviour.setScenario(scenarioId)}
               className={`rounded-lg border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] transition ${
                 behaviour.scenario === scenarioId
-                  ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-200'
+                  ? scenarioId === behaviour.scenarios.WAITING
+                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
+                    : 'border-sky-400/50 bg-sky-500/20 text-sky-200'
                   : 'border-white/10 bg-black/20 text-white/50 hover:border-cyan-400/30 hover:text-white/80'
               }`}
             >
@@ -142,7 +150,7 @@ export default function BehaviourPanel() {
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center gap-2">
-          <Brain size={15} className="text-cyan-300" />
+          <Activity size={15} className="text-cyan-300" />
           <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-cyan-300">
             Current Behaviour Observation
           </p>
@@ -155,12 +163,12 @@ export default function BehaviourPanel() {
               label={item.label}
               value={item.value}
               detail={item.detail}
-              status={item.id === 'concern-level' ? behaviour.status : 'ready'}
+              status={item.status || behaviour.status}
             />
           ))}
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
           <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-white/40">
             Decision hint
           </p>

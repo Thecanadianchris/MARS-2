@@ -9,18 +9,21 @@
  * Displays the current safe Identity Foundation state.
  *
  * Version:
- * v0.13.5
- *
+ * v0.13.7a
  * Date Code:
  * 040726
  * ==========================================================
  */
 
 import { ShieldCheck, UserRound } from 'lucide-react'
+import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
 
-export default function IdentityStatusCard({ identityResult }) {
+export default function IdentityStatusCard({ identityResult, capabilityState }) {
   const result = identityResult || {}
   const profile = result.profile || {}
+  const waiting = capabilityState?.isWaiting
+  const displayName = waiting ? 'No recognised person' : profile.displayName || 'Unknown person'
+  const userType = waiting ? 'waiting for live identity input' : formatUserType(profile.userType || result.userType || 'unknown')
 
   return (
     <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/70 p-4 text-sm text-cyan-100 shadow-lg shadow-cyan-500/10">
@@ -40,7 +43,7 @@ export default function IdentityStatusCard({ identityResult }) {
           </div>
         </div>
 
-        <StatePill state={result.state} />
+        <CapabilityStateBadge state={capabilityState} />
       </div>
 
       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -48,14 +51,14 @@ export default function IdentityStatusCard({ identityResult }) {
           <div>
             <div className="text-xs uppercase tracking-widest text-slate-500">Current profile</div>
             <div className="mt-1 text-xl font-bold text-white">
-              {profile.displayName || 'Unknown'}
+              {displayName}
             </div>
             <div className="mt-1 text-xs text-slate-400">
-              {formatUserType(profile.userType || result.userType || 'unknown')}
+              {userType}
             </div>
           </div>
 
-          {result.protected && (
+          {!waiting && result.protected && (
             <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300">
               <ShieldCheck size={12} />
               Protected
@@ -64,27 +67,16 @@ export default function IdentityStatusCard({ identityResult }) {
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-          <Metric label="Known" value={result.known ? 'Yes' : 'No'} />
-          <Metric label="Trusted" value={result.trusted ? 'Yes' : 'No'} />
-          <Metric label="Confidence" value={`${Math.round(result.confidence || 0)}%`} />
+          <Metric label="Known" value={!waiting && result.known ? 'Yes' : 'No'} />
+          <Metric label="Trusted" value={!waiting && result.trusted ? 'Yes' : 'No'} />
+          <Metric label="Confidence" value={`${waiting ? 0 : Math.round(result.confidence || 0)}%`} />
         </div>
       </div>
 
       <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-slate-300">
-        {result.summary || 'Identity result unavailable.'}
+        {capabilityState?.message || result.summary || 'Identity result unavailable.'}
       </div>
     </div>
-  )
-}
-
-function StatePill({ state }) {
-  const safeState = state || 'unknown'
-  const colour = getStateColour(safeState)
-
-  return (
-    <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-widest ${colour}`}>
-      {safeState.replaceAll('_', ' ')}
-    </span>
   )
 }
 
@@ -95,15 +87,6 @@ function Metric({ label, value }) {
       <div className="mt-1 uppercase tracking-widest text-slate-500">{label}</div>
     </div>
   )
-}
-
-function getStateColour(state) {
-  if (state === 'protected') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-  if (state === 'trusted' || state === 'known') return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
-  if (state === 'unknown' || state === 'pending_profile') return 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-  if (state === 'blocked') return 'border-red-500/30 bg-red-500/10 text-red-300'
-
-  return 'border-slate-500/30 bg-slate-500/10 text-slate-300'
 }
 
 function formatUserType(userType) {

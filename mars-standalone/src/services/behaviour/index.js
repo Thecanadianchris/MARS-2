@@ -30,3 +30,7 @@ export { default as BehaviourObservationBuilder } from './BehaviourObservationBu
 export { default as BehaviourPatternEngine } from './BehaviourPatternEngine'
 export { default as BehaviourRiskScoring } from './BehaviourRiskScoring'
 export { default as ProtectedBehaviourPolicy } from './ProtectedBehaviourPolicy'
+
+export { default as BehaviourPrimitiveRegistry, PRIMITIVE_GROUPS, SYSTEM_BEHAVIOUR_PRIMITIVES } from './BehaviourPrimitiveRegistry'
+export { default as BehaviourProfileRegistry, BEHAVIOUR_PROFILE_ORIGINS } from './BehaviourProfileRegistry'
+export { default as BehaviourProfileMatcher } from './BehaviourProfileMatcher'

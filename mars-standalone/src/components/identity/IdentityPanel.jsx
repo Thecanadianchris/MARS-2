@@ -21,6 +21,7 @@ import useIdentityFoundation from '@/hooks/useIdentityFoundation'
 import IdentityCapabilityCard from './IdentityCapabilityCard'
 import IdentityProfileCard from './IdentityProfileCard'
 import IdentityStatusCard from './IdentityStatusCard'
+import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
 
 export default function IdentityPanel() {
   const {
@@ -31,13 +32,15 @@ export default function IdentityPanel() {
     identityResult,
     diagnostics,
     capabilities,
+    capabilityState,
     selectScenario,
     refresh,
+    clearSimulation,
   } = useIdentityFoundation()
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
-      <IdentityStatusCard identityResult={identityResult} />
+      <IdentityStatusCard identityResult={identityResult} capabilityState={capabilityState} />
 
       <section className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-200">
         <div className="mb-3 flex items-start justify-between gap-3">
@@ -46,25 +49,28 @@ export default function IdentityPanel() {
               Identity Simulation
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-slate-400">
-              UI-safe scenarios for testing Identity Foundation without biometric recognition.
+              Developer-only scenarios for testing Identity Foundation. Simulation is not live recognition.
             </p>
           </div>
 
-          <button
+          <div className="flex items-center gap-2">
+            <CapabilityStateBadge state={capabilityState} />
+            <button
             onClick={refresh}
             className="flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs font-semibold tracking-wide text-cyan-200 hover:bg-cyan-500/20"
           >
             <RefreshCw size={13} />
             REFRESH
           </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <ScenarioButton label="No person" active={scenario === scenarios.NO_PERSON} onClick={() => selectScenario(scenarios.NO_PERSON)} />
-          <ScenarioButton label="Unknown" active={scenario === scenarios.UNKNOWN_PERSON} onClick={() => selectScenario(scenarios.UNKNOWN_PERSON)} />
-          <ScenarioButton label="Christian" active={scenario === scenarios.CHRISTIAN} onClick={() => selectScenario(scenarios.CHRISTIAN)} />
-          <ScenarioButton label="Ann" active={scenario === scenarios.ANN} onClick={() => selectScenario(scenarios.ANN)} />
-          <ScenarioButton label="Finley" active={scenario === scenarios.FINLEY} onClick={() => selectScenario(scenarios.FINLEY)} wide />
+          <ScenarioButton label="Live waiting" active={scenario === scenarios.WAITING} onClick={clearSimulation} />
+          <ScenarioButton label="Unknown sim" active={scenario === scenarios.UNKNOWN_PERSON} onClick={() => selectScenario(scenarios.UNKNOWN_PERSON)} />
+          <ScenarioButton label="Christian sim" active={scenario === scenarios.CHRISTIAN} onClick={() => selectScenario(scenarios.CHRISTIAN)} />
+          <ScenarioButton label="Ann sim" active={scenario === scenarios.ANN} onClick={() => selectScenario(scenarios.ANN)} />
+          <ScenarioButton label="Finley sim" active={scenario === scenarios.FINLEY} onClick={() => selectScenario(scenarios.FINLEY)} wide />
         </div>
       </section>
 

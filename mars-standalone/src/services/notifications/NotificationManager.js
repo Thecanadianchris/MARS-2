@@ -6,15 +6,11 @@
  * NotificationManager
  *
  * Purpose:
- * Creates notification records from Decision Engine outputs
- * and User Manager context.
- *
- * Notifications are driven by decisions, not directly by
- * Vision or Identity.
+ * Backward-compatible notification manager plus M2.5 routing
+ * through NotificationEngine.
  *
  * Version:
- * v0.13.2
- *
+ * v0.13.9
  * Date Code:
  * 040726
  * ==========================================================
@@ -22,6 +18,7 @@
 
 import NotificationPolicy from './NotificationPolicy'
 import NotificationQueue from './NotificationQueue'
+import NotificationEngine from './NotificationEngine'
 
 class NotificationManager {
   createFromDecision(decision = {}, userContext = {}, authorisedUsers = []) {
@@ -33,7 +30,7 @@ class NotificationManager {
       return {
         status: 'not_required',
         provider: 'LOCAL_NOTIFICATION_MANAGER',
-        version: 'v0.13.2',
+        version: 'v0.13.9',
         policy,
         notification: null
       }
@@ -59,10 +56,14 @@ class NotificationManager {
     return {
       status: 'queued',
       provider: 'LOCAL_NOTIFICATION_MANAGER',
-      version: 'v0.13.2',
+      version: 'v0.13.9',
       policy,
       notification
     }
+  }
+
+  evaluateDecision(decision, profileId) {
+    return NotificationEngine.evaluateDecision(decision, profileId)
   }
 
   createTitle(policy) {
@@ -91,6 +92,7 @@ class NotificationManager {
 
   reset() {
     NotificationQueue.clear()
+    NotificationEngine.clearHistory()
   }
 }
 

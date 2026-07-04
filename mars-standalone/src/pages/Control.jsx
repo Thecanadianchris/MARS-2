@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound, PersonStanding, BrainCircuit } from 'lucide-react'
+import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound, PersonStanding, BrainCircuit, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
@@ -13,6 +13,7 @@ import DiagnosticsPanel from '@/components/diagnostics/DiagnosticsPanel'
 import IdentityPanel from '@/components/identity/IdentityPanel'
 import BehaviourPanel from '@/components/behaviour/BehaviourPanel'
 import DecisionPanel from '@/components/decision/DecisionPanel'
+import NotificationPanel from '@/components/notifications/NotificationPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -103,6 +104,8 @@ export default function Control() {
 
         {tab === 'decision' && <DecisionPanel />}
 
+        {tab === 'notification' && <NotificationPanel />}
+
         {tab === 'diagnostics' && <DiagnosticsPanel />}
       </main>
 
@@ -178,6 +181,18 @@ export default function Control() {
           >
             <BrainCircuit size={17} />
             <span className="text-[9px] font-mono tracking-wider">DEC</span>
+          </button>
+
+          <button
+            onClick={() => setTab('notification')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 ${
+              tab === 'notification'
+                ? 'text-cyan-400'
+                : 'text-white/30 hover:text-white/50'
+            }`}
+          >
+            <BellRing size={17} />
+            <span className="text-[9px] font-mono tracking-wider">NOTIF</span>
           </button>
 
           <button

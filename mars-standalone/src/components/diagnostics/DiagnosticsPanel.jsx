@@ -20,6 +20,7 @@
 import { Activity, RefreshCw } from 'lucide-react'
 import useDiagnostics from '@/hooks/useDiagnostics'
 import StatusIndicator from './StatusIndicator'
+import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
 import DiagnosticsSection from './DiagnosticsSection'
 
 export default function DiagnosticsPanel() {
@@ -46,11 +47,19 @@ export default function DiagnosticsPanel() {
             </div>
           </div>
 
-          <StatusIndicator status={snapshot?.status} />
+          <div className="flex flex-col items-end gap-2">
+            <CapabilityStateBadge state={snapshot?.capabilityState} />
+            <StatusIndicator status={snapshot?.status} />
+          </div>
         </div>
 
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-slate-300">
           {snapshot?.summary || 'Diagnostics snapshot unavailable.'}
+        </div>
+
+
+        <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
+          EP-012 Live Data Integrity active: diagnostics reports real subsystem state and does not present waiting capabilities as live observations.
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
