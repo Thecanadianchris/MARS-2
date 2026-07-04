@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity } from 'lucide-react'
+import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
@@ -10,6 +10,7 @@ import AIStatusPanel from '@/components/system/AIStatusPanel'
 import VisionStatusPanel from '@/components/system/VisionStatusPanel'
 import CameraPreviewPanel from '@/components/system/CameraPreviewPanel'
 import DiagnosticsPanel from '@/components/diagnostics/DiagnosticsPanel'
+import IdentityPanel from '@/components/identity/IdentityPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -94,6 +95,8 @@ export default function Control() {
 
         {tab === 'vision' && <VisionPanel />}
 
+        {tab === 'identity' && <IdentityPanel />}
+
         {tab === 'diagnostics' && <DiagnosticsPanel />}
       </main>
 
@@ -135,6 +138,18 @@ export default function Control() {
             <span className="text-[10px] font-mono tracking-wider">VISION</span>
           </button>
 
+
+          <button
+            onClick={() => setTab('identity')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 ${
+              tab === 'identity'
+                ? 'text-cyan-400'
+                : 'text-white/30 hover:text-white/50'
+            }`}
+          >
+            <UserRound size={18} />
+            <span className="text-[10px] font-mono tracking-wider">ID</span>
+          </button>
 
           <button
             onClick={() => setTab('diagnostics')}

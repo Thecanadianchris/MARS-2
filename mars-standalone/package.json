@@ -7,10 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-
     "test": "vitest run",
     "smoke": "vitest run src/tests",
-
     "release-check": "npm run test && npm run build",
     "validate": "npm run release-check"
   },
