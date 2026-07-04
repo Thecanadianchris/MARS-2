@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound } from 'lucide-react'
+import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity, UserRound, PersonStanding } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
@@ -11,6 +11,7 @@ import VisionStatusPanel from '@/components/system/VisionStatusPanel'
 import CameraPreviewPanel from '@/components/system/CameraPreviewPanel'
 import DiagnosticsPanel from '@/components/diagnostics/DiagnosticsPanel'
 import IdentityPanel from '@/components/identity/IdentityPanel'
+import BehaviourPanel from '@/components/behaviour/BehaviourPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -97,6 +98,8 @@ export default function Control() {
 
         {tab === 'identity' && <IdentityPanel />}
 
+        {tab === 'behaviour' && <BehaviourPanel />}
+
         {tab === 'diagnostics' && <DiagnosticsPanel />}
       </main>
 
@@ -110,8 +113,8 @@ export default function Control() {
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
-            <MessageSquare size={18} />
-            <span className="text-[10px] font-mono tracking-wider">CHAT</span>
+            <MessageSquare size={17} />
+            <span className="text-[9px] font-mono tracking-wider">CHAT</span>
           </button>
 
           <button
@@ -122,8 +125,8 @@ export default function Control() {
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
-            <Gauge size={18} />
-            <span className="text-[10px] font-mono tracking-wider">CONTROL</span>
+            <Gauge size={17} />
+            <span className="text-[9px] font-mono tracking-wider">CTRL</span>
           </button>
 
           <button
@@ -134,10 +137,9 @@ export default function Control() {
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
-            <Eye size={18} />
-            <span className="text-[10px] font-mono tracking-wider">VISION</span>
+            <Eye size={17} />
+            <span className="text-[9px] font-mono tracking-wider">VISION</span>
           </button>
-
 
           <button
             onClick={() => setTab('identity')}
@@ -147,8 +149,20 @@ export default function Control() {
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
-            <UserRound size={18} />
-            <span className="text-[10px] font-mono tracking-wider">ID</span>
+            <UserRound size={17} />
+            <span className="text-[9px] font-mono tracking-wider">ID</span>
+          </button>
+
+          <button
+            onClick={() => setTab('behaviour')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 ${
+              tab === 'behaviour'
+                ? 'text-cyan-400'
+                : 'text-white/30 hover:text-white/50'
+            }`}
+          >
+            <PersonStanding size={17} />
+            <span className="text-[9px] font-mono tracking-wider">BEHAV</span>
           </button>
 
           <button
@@ -159,8 +173,8 @@ export default function Control() {
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
-            <Activity size={18} />
-            <span className="text-[10px] font-mono tracking-wider">DIAG</span>
+            <Activity size={17} />
+            <span className="text-[9px] font-mono tracking-wider">DIAG</span>
           </button>
 
           <button
@@ -171,8 +185,8 @@ export default function Control() {
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
-            <Brain size={18} />
-            <span className="text-[10px] font-mono tracking-wider">MEMORY</span>
+            <Brain size={17} />
+            <span className="text-[9px] font-mono tracking-wider">MEM</span>
           </button>
         </div>
       </nav>
