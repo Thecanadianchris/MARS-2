@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye } from 'lucide-react'
+import { MessageSquare, Gauge, Battery, Bluetooth, Link2, Brain, Eye, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
@@ -9,6 +9,7 @@ import VisionPanel from '@/components/mars/VisionPanel'
 import AIStatusPanel from '@/components/system/AIStatusPanel'
 import VisionStatusPanel from '@/components/system/VisionStatusPanel'
 import CameraPreviewPanel from '@/components/system/CameraPreviewPanel'
+import DiagnosticsPanel from '@/components/diagnostics/DiagnosticsPanel'
 import { clearMemory, recallAll } from '@/components/mars/memory'
 
 export default function Control() {
@@ -92,6 +93,8 @@ export default function Control() {
         )}
 
         {tab === 'vision' && <VisionPanel />}
+
+        {tab === 'diagnostics' && <DiagnosticsPanel />}
       </main>
 
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg border-t border-white/5 bg-[#0a0e17]/95 backdrop-blur-xl z-40">
@@ -130,6 +133,19 @@ export default function Control() {
           >
             <Eye size={18} />
             <span className="text-[10px] font-mono tracking-wider">VISION</span>
+          </button>
+
+
+          <button
+            onClick={() => setTab('diagnostics')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 ${
+              tab === 'diagnostics'
+                ? 'text-cyan-400'
+                : 'text-white/30 hover:text-white/50'
+            }`}
+          >
+            <Activity size={18} />
+            <span className="text-[10px] font-mono tracking-wider">DIAG</span>
           </button>
 
           <button
