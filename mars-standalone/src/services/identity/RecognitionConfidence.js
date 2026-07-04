@@ -9,10 +9,9 @@
  * Provides confidence calculation utilities for the MARS
  * Identity Recognition architecture.
  *
- * This module does not recognise people.
- * It only normalises and combines confidence values produced
- * by Vision, Tracking, Face Quality and future recognition
- * providers.
+ * This module does not recognise people. It only normalises
+ * and combines confidence values produced by Vision, Tracking,
+ * Face Quality and future recognition providers.
  *
  * Version:
  * v0.13.1
@@ -26,7 +25,7 @@ const DEFAULT_WEIGHTS = Object.freeze({
   visionConfidence: 0.25,
   trackingConfidence: 0.25,
   faceQuality: 0.25,
-  identityConfidence: 0.25
+  identityConfidence: 0.25,
 })
 
 class RecognitionConfidence {
@@ -35,6 +34,10 @@ class RecognitionConfidence {
 
     if (Number.isNaN(number)) {
       return 0
+    }
+
+    if (number > 1) {
+      return Math.max(0, Math.min(1, number / 100))
     }
 
     return Math.max(0, Math.min(1, number))
@@ -49,47 +52,46 @@ class RecognitionConfidence {
     const faceQuality = this.clamp(safeScores.faceQuality)
     const identityConfidence = this.clamp(safeScores.identityConfidence)
 
+    const totalWeight =
+      this.clamp(safeWeights.visionConfidence) +
+      this.clamp(safeWeights.trackingConfidence) +
+      this.clamp(safeWeights.faceQuality) +
+      this.clamp(safeWeights.identityConfidence)
+
+    const divisor = totalWeight || 1
+
     const weightedScore =
-      visionConfidence * safeWeights.visionConfidence +
-      trackingConfidence * safeWeights.trackingConfidence +
-      faceQuality * safeWeights.faceQuality +
-      identityConfidence * safeWeights.identityConfidence
+      (visionConfidence * this.clamp(safeWeights.visionConfidence) +
+        trackingConfidence * this.clamp(safeWeights.trackingConfidence) +
+        faceQuality * this.clamp(safeWeights.faceQuality) +
+        identityConfidence * this.clamp(safeWeights.identityConfidence)) /
+      divisor
 
     return {
       status: 'success',
       provider: 'LOCAL_RECOGNITION_CONFIDENCE',
       version: 'v0.13.1',
       confidence: this.clamp(weightedScore),
+      description: this.describe(weightedScore),
       scores: {
         visionConfidence,
         trackingConfidence,
         faceQuality,
-        identityConfidence
+        identityConfidence,
       },
       weights: {
-        ...safeWeights
-      }
+        ...safeWeights,
+      },
     }
   }
 
   describe(confidence = 0) {
     const value = this.clamp(confidence)
 
-    if (value >= 0.9) {
-      return 'very_high'
-    }
-
-    if (value >= 0.75) {
-      return 'high'
-    }
-
-    if (value >= 0.5) {
-      return 'medium'
-    }
-
-    if (value >= 0.25) {
-      return 'low'
-    }
+    if (value >= 0.9) return 'very_high'
+    if (value >= 0.75) return 'high'
+    if (value >= 0.5) return 'medium'
+    if (value >= 0.25) return 'low'
 
     return 'very_low'
   }

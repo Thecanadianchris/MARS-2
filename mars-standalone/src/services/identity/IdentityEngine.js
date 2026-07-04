@@ -6,27 +6,32 @@
  * IdentityEngine
  *
  * Purpose:
- * Orchestrates the v0.13.0 MARS Identity Foundation.
+ * Orchestrates the MARS Identity Foundation and v0.13.1
+ * Identity Recognition Architecture.
+ *
  * Identity answers "who is this?" while User Management,
  * Decision Intelligence and Notifications remain separate
  * subsystems.
  *
- * This engine prepares MARS for future face recognition but
- * does not implement biometric recognition in v0.13.0.
+ * This engine accepts neutral perception results or provider-
+ * neutral Recognition Candidates. It prepares MARS for future
+ * face recognition but does not implement biometric recognition.
  *
  * Version:
- * v0.13.0
+ * v0.13.1
  *
  * Date Code:
- * 030726
+ * 040726
  * ==========================================================
  */
 
 import IdentityDiagnosticsService from './IdentityDiagnosticsService'
 import IdentityObservationBuilder from './IdentityObservationBuilder'
 import IdentityStateMachine from './IdentityStateMachine'
+import IdentityTrackingService from './IdentityTrackingService'
 import PersonRegistry from './PersonRegistry'
 import ProfileAuthorisationService from './ProfileAuthorisationService'
+import RecognitionCandidate from './RecognitionCandidate'
 import {
   IDENTITY_STATES,
   IDENTITY_USER_TYPES,
@@ -36,11 +41,20 @@ class IdentityEngine {
   evaluate(perceptionResult = {}, options = {}) {
     const safePerceptionResult = perceptionResult || {}
     const safeOptions = options || {}
+    const trackingResult = this.resolveTrackingResult(safePerceptionResult, safeOptions)
+    const recognitionCandidate = trackingResult?.candidate || this.resolveRecognitionCandidate(
+      safePerceptionResult,
+      safeOptions
+    )
 
     const observationIds = this.getObservationIds(safePerceptionResult)
-    const personPresent = this.hasPersonPresent(safePerceptionResult, observationIds)
-    const faceDetected = this.hasFaceDetected(safePerceptionResult)
-    const matchedProfile = this.resolveMatchedProfile(safeOptions)
+    const personPresent = this.hasPersonPresent(
+      safePerceptionResult,
+      observationIds,
+      recognitionCandidate
+    )
+    const faceDetected = this.hasFaceDetected(safePerceptionResult, recognitionCandidate)
+    const matchedProfile = this.resolveMatchedProfile(safeOptions, recognitionCandidate)
     const pendingProfile = safeOptions.pendingProfile || null
 
     const stateResult = IdentityStateMachine.evaluate({
@@ -59,7 +73,7 @@ class IdentityEngine {
     const identityResult = {
       status: stateResult.status,
       provider: 'LOCAL_IDENTITY_ENGINE',
-      version: 'v0.13.0',
+      version: 'v0.13.1',
       timestamp: Date.now(),
       state: stateResult.state,
       confidence: stateResult.confidence,
@@ -73,12 +87,8 @@ class IdentityEngine {
       requiresTrustedUserConfirmation:
         stateResult.state === IDENTITY_STATES.UNKNOWN ||
         stateResult.state === IDENTITY_STATES.PENDING_PROFILE,
-      recognition: {
-        faceRecognitionActive: false,
-        voiceRecognitionActive: false,
-        recognitionProvider: 'not_implemented_in_v0.13.0',
-        preparedForFutureRecognition: true,
-      },
+      recognition: this.createRecognitionSummary(recognitionCandidate, trackingResult),
+      tracking: this.createTrackingSummary(trackingResult),
       workflow: this.createWorkflowState(stateResult.state),
     }
 
@@ -92,6 +102,29 @@ class IdentityEngine {
       diagnostics,
       summary: this.createSummary(identityResult),
     }
+  }
+
+  evaluateRecognitionCandidate(recognitionCandidate = {}, options = {}) {
+    const candidate = RecognitionCandidate.create(recognitionCandidate)
+
+    return this.evaluate(
+      {
+        status: 'success',
+        provider: 'RECOGNITION_CANDIDATE_INPUT',
+        timestamp: candidate.timestamp,
+        recognitionCandidate: candidate,
+        personPresent: Boolean(candidate.trackingId),
+        faceVisible: candidate.faceVisible,
+        detections: {
+          people: candidate.trackingId ? 1 : 0,
+          faces: candidate.faceVisible ? 1 : 0,
+        },
+      },
+      {
+        ...options,
+        recognitionCandidate: candidate,
+      }
+    )
   }
 
   createPendingProfile(candidate = {}) {
@@ -165,13 +198,58 @@ class IdentityEngine {
 
   reset() {
     PersonRegistry.reset()
+    IdentityTrackingService.reset()
   }
 
-  resolveMatchedProfile(options = {}) {
+  resolveTrackingResult(perceptionResult = {}, options = {}) {
+    const safePerceptionResult = perceptionResult || {}
+    const safeOptions = options || {}
+
+    if (safeOptions.disableTracking) {
+      return null
+    }
+
+    if (safeOptions.trackingResult) {
+      return safeOptions.trackingResult
+    }
+
+    if (safeOptions.recognitionCandidate || safePerceptionResult.recognitionCandidate) {
+      return null
+    }
+
+    return IdentityTrackingService.updateFromPerception(
+      safePerceptionResult,
+      safeOptions.trackingOptions || {}
+    )
+  }
+
+  resolveRecognitionCandidate(perceptionResult = {}, options = {}) {
+    const safePerceptionResult = perceptionResult || {}
+    const safeOptions = options || {}
+    const candidate = safeOptions.recognitionCandidate || safePerceptionResult.recognitionCandidate
+
+    if (!candidate) {
+      return null
+    }
+
+    return RecognitionCandidate.create(candidate)
+  }
+
+  resolveMatchedProfile(options = {}, recognitionCandidate = null) {
     const safeOptions = options || {}
 
     if (safeOptions.matchedProfile) {
       return safeOptions.matchedProfile
+    }
+
+    const candidateProfile = recognitionCandidate?.candidateProfiles?.[0] || null
+
+    if (candidateProfile?.profile) {
+      return candidateProfile.profile
+    }
+
+    if (candidateProfile?.profileId) {
+      return PersonRegistry.getProfile(candidateProfile.profileId)
     }
 
     if (safeOptions.profileId) {
@@ -196,19 +274,23 @@ class IdentityEngine {
     ])
   }
 
-  hasPersonPresent(perceptionResult = {}, observationIds = new Set()) {
+  hasPersonPresent(perceptionResult = {}, observationIds = new Set(), recognitionCandidate = null) {
     const safePerceptionResult = perceptionResult || {}
 
     return (
       observationIds.has('person_present') ||
-      Boolean(safePerceptionResult.detections?.people > 0)
+      Boolean(safePerceptionResult.detections?.people > 0) ||
+      Boolean(safePerceptionResult.personPresent) ||
+      Boolean(recognitionCandidate?.trackingId)
     )
   }
 
-  hasFaceDetected(perceptionResult = {}) {
+  hasFaceDetected(perceptionResult = {}, recognitionCandidate = null) {
     const safePerceptionResult = perceptionResult || {}
 
     return (
+      Boolean(recognitionCandidate?.faceVisible) ||
+      Boolean(safePerceptionResult.faceVisible) ||
       Boolean(safePerceptionResult.faceFoundation?.faceDetected) ||
       Boolean(safePerceptionResult.faceFoundation?.faceCount > 0) ||
       Boolean(safePerceptionResult.detections?.faces > 0)
@@ -248,6 +330,48 @@ class IdentityEngine {
       protected: false,
       blocked: false,
       pending: false,
+    }
+  }
+
+  createRecognitionSummary(recognitionCandidate = null, trackingResult = null) {
+    if (!recognitionCandidate) {
+      return {
+        faceRecognitionActive: false,
+        voiceRecognitionActive: false,
+        recognitionProvider: 'not_implemented_in_v0.13.1',
+        preparedForFutureRecognition: true,
+        candidate: null,
+      }
+    }
+
+    return {
+      faceRecognitionActive: false,
+      voiceRecognitionActive: false,
+      recognitionProvider: 'not_implemented_in_v0.13.1',
+      preparedForFutureRecognition: true,
+      candidate: recognitionCandidate.toJSON
+        ? recognitionCandidate.toJSON()
+        : recognitionCandidate,
+      confidence: trackingResult?.recognitionConfidence || null,
+      faceQuality: trackingResult?.faceQuality || null,
+    }
+  }
+
+  createTrackingSummary(trackingResult = null) {
+    if (!trackingResult?.track) {
+      return {
+        active: false,
+        trackingId: null,
+        track: null,
+        timeline: [],
+      }
+    }
+
+    return {
+      active: trackingResult.track.status === 'active',
+      trackingId: trackingResult.track.trackingId,
+      track: trackingResult.track,
+      timeline: trackingResult.timeline || [],
     }
   }
 
