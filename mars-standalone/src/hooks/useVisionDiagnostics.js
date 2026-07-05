@@ -6,18 +6,67 @@
  * useVisionDiagnostics
  *
  * Purpose:
- * Normalises Vision, Observation and Personal Observation data
- * for developer diagnostics display.
+ * Normalises live Vision Pipeline, Observation and Personal
+ * Observation data for developer diagnostics display.
  *
  * Version:
- * v0.11.3
+ * v0.13.5
  *
  * Date Code:
- * 290626
+ * 050726
  * ==========================================================
  */
 
 import { useMemo } from 'react'
+
+function normaliseConfidence(value) {
+  if (typeof value !== 'number') {
+    return 0
+  }
+
+  return value > 1 ? value / 100 : value
+}
+
+function getBodyState(visionResult, observation) {
+  return (
+    observation?.bodyState ||
+    visionResult?.bodyState?.posture ||
+    visionResult?.bodyState?.state ||
+    visionResult?.poseSummary?.posture ||
+    visionResult?.bodyState ||
+    'unknown'
+  )
+}
+
+function getMovementState(visionResult, observation) {
+  return (
+    observation?.movement ||
+    visionResult?.movement?.state ||
+    visionResult?.movement?.direction ||
+    visionResult?.movement ||
+    'unknown'
+  )
+}
+
+function getActivityState(visionResult, observation) {
+  return (
+    observation?.activity ||
+    visionResult?.activityRecognition?.activity ||
+    visionResult?.activityRecognition?.state ||
+    visionResult?.activity ||
+    'unknown'
+  )
+}
+
+function getFaceState(visionResult, observation) {
+  return (
+    observation?.faceState ||
+    visionResult?.faceFoundation?.state ||
+    visionResult?.faceFoundation?.summary ||
+    visionResult?.faceState ||
+    'unknown'
+  )
+}
 
 export default function useVisionDiagnostics({
   visionResult = null,
@@ -28,44 +77,36 @@ export default function useVisionDiagnostics({
   return useMemo(() => {
     const personDetected =
       observation?.personPresent ??
+      Boolean(visionResult?.detections?.people) ??
       visionResult?.personDetected ??
       false
 
-    const bodyState =
-      observation?.bodyState ??
-      visionResult?.bodyState ??
-      'unknown'
+    const bodyState = getBodyState(visionResult, observation)
+    const movement = getMovementState(visionResult, observation)
+    const activity = getActivityState(visionResult, observation)
+    const faceState = getFaceState(visionResult, observation)
 
-    const movement =
-      observation?.movement ??
-      visionResult?.movement ??
-      'unknown'
-
-    const activity =
-      observation?.activity ??
-      visionResult?.activity ??
-      'unknown'
-
-    const faceState =
-      observation?.faceState ??
-      visionResult?.faceState ??
-      'unknown'
-
-    const confidence =
+    const confidence = normaliseConfidence(
       observation?.confidence ??
-      visionResult?.confidence ??
-      0
+        visionResult?.risk?.confidence ??
+        visionResult?.confidence ??
+        0
+    )
 
     const timestamp =
       observation?.timestamp ??
       visionResult?.timestamp ??
       null
 
+    const liveFrameCount = visionResult?.performance?.processedFrameCount || 0
+
     return {
       camera: {
         value: frameStatus?.cameraReady ? 'Active' : 'Inactive',
         status: frameStatus?.cameraReady ? 'good' : 'warning',
-        subtitle: frameStatus?.message ?? 'Camera readiness state',
+        subtitle: liveFrameCount
+          ? `${frameStatus?.message ?? 'Camera readiness state'} · Frame ${liveFrameCount}`
+          : frameStatus?.message ?? 'Camera readiness state',
       },
 
       person: {
@@ -77,19 +118,19 @@ export default function useVisionDiagnostics({
       body: {
         value: bodyState,
         status: bodyState === 'unknown' ? 'warning' : 'info',
-        subtitle: 'Current body state',
+        subtitle: visionResult?.bodyState?.summary || 'Current body state',
       },
 
       movement: {
         value: movement,
         status: movement === 'unknown' ? 'warning' : 'info',
-        subtitle: 'Current movement state',
+        subtitle: visionResult?.movement?.summary || 'Current movement state',
       },
 
       activity: {
         value: activity,
         status: activity === 'unknown' ? 'neutral' : 'info',
-        subtitle: 'Recognised activity',
+        subtitle: visionResult?.activityRecognition?.summary || 'Recognised activity',
       },
 
       face: {

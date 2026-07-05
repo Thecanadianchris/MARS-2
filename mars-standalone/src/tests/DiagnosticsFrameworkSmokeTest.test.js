@@ -6,14 +6,14 @@
  * DiagnosticsFrameworkSmokeTest
  *
  * Purpose:
- * Vitest smoke test for the MARS v0.13.4 M2.1 Diagnostics
- * Framework.
+ * Vitest smoke test for the MARS v0.13.5 Live Pipeline
+ * Diagnostics Framework.
  *
  * Version:
- * v0.13.4
+ * v0.13.5
  *
  * Date Code:
- * 040726
+ * 050726
  * ==========================================================
  */
 
@@ -25,19 +25,21 @@ describe('Diagnostics Framework Smoke Test', () => {
     const snapshot = DiagnosticsManager.runDiagnostics()
 
     expect(snapshot).toBeDefined()
-    expect(snapshot.version).toBe('v0.13.4')
-    expect(snapshot.module).toBe('M2.1 Diagnostics Framework')
+    expect(snapshot.version).toBe('v0.13.5')
+    expect(snapshot.module).toBe('Live Pipeline Diagnostics Framework')
     expect(snapshot.status).toBeDefined()
     expect(snapshot.items.length).toBeGreaterThan(0)
     expect(snapshot.counts.total).toBe(snapshot.items.length)
   })
 
-  it('reports robot, identity, decision and notification capability areas', () => {
+  it('reports robot, live pipeline, identity, behaviour, decision and notification capability areas', () => {
     const snapshot = DiagnosticsManager.runDiagnostics()
     const ids = snapshot.items.map((item) => item.id)
 
     expect(ids).toContain('robot-onboard-platform')
+    expect(ids).toContain('live-pipeline-wiring')
     expect(ids).toContain('identity-foundation')
+    expect(ids).toContain('behaviour-live-intelligence')
     expect(ids).toContain('decision-engine')
     expect(ids).toContain('notification-alerting')
   })

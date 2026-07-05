@@ -28,6 +28,8 @@ import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
 import IdentityEngine from '../identity/IdentityEngine'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
+import NotificationManager from '../notifications/NotificationManager'
+import LivePipelineStore from '../livePipeline/LivePipelineStore'
 
 class VisionPipeline {
   constructor() {
@@ -170,16 +172,23 @@ class VisionPipeline {
       resultBeforeDecision
     )
 
+    const notificationEngine = this.runNotificationEngine(
+      decisionIntelligence,
+      identity
+    )
+
     const performanceMetrics = this.updatePerformanceMetrics(startTime)
 
-    return {
+    const finalResult = {
       ...resultBeforeDecision,
       performance: performanceMetrics,
       decisionIntelligence,
       context: decisionIntelligence.context,
-      decision: decisionIntelligence.decision,
-      priority: decisionIntelligence.priority,
-      recommendation: decisionIntelligence.recommendation,
+      decision: decisionIntelligence.decisionResult,
+      priority: decisionIntelligence.priorityResult,
+      recommendation: decisionIntelligence.recommendationResult,
+      notificationEngine,
+      notification: notificationEngine.notification,
       summary: this.buildSummary([
         poseResult.summary,
         poseSummary.summary,
@@ -193,10 +202,16 @@ class VisionPipeline {
         identity.summary,
         personalObservation.summary,
         decisionIntelligence.summary,
+        notificationEngine.summary,
         `Performance: ${performanceMetrics.fps} FPS, ${performanceMetrics.latencyMs} ms latency`,
         `Risk: ${calculatedRiskLevel} / 10`,
       ]),
     }
+
+    LivePipelineStore.saveResult(finalResult)
+    LivePipelineStore.saveNotification(notificationEngine)
+
+    return finalResult
   }
 
   createPendingPerformanceMetrics() {
@@ -278,6 +293,28 @@ class VisionPipeline {
       summary:
         'Decision Intelligence Service exists but no supported execution method was found.',
     }
+  }
+
+
+  runNotificationEngine(decisionIntelligence, identity) {
+    const profileId = identity?.profile?.id || 'owner-default'
+    const decisionForNotification = {
+      status: decisionIntelligence?.status || 'waiting',
+      type: 'live_pipeline_decision',
+      source: 'live-pipeline',
+      summary: decisionIntelligence?.summary,
+      highestPriority: decisionIntelligence?.priorityResult?.highestPriority,
+      highestRecommendation:
+        decisionIntelligence?.recommendationResult?.highestRecommendation,
+      priority: decisionIntelligence?.priorityResult?.highestPriority?.originalPriority,
+      score: decisionIntelligence?.priorityResult?.highestPriority?.score || 0,
+    }
+
+    if (!decisionIntelligence || decisionIntelligence.status !== 'success') {
+      return NotificationManager.evaluateDecision(null, profileId)
+    }
+
+    return NotificationManager.evaluateDecision(decisionForNotification, profileId)
   }
 
   calculateConfidence(

@@ -11,10 +11,10 @@
  * details of Identity, Vision, AI, Decision or Notifications.
  *
  * Version:
- * v0.13.4
+ * v0.13.5
  *
  * Date Code:
- * 040726
+ * 050726
  * ==========================================================
  */
 
@@ -23,6 +23,7 @@ import VisionService from '@/services/vision/VisionService'
 import IdentityDiagnosticsService from '@/services/identity/IdentityDiagnosticsService'
 import NotificationManager from '@/services/notifications/NotificationManager'
 import DecisionIntelligenceService from '@/services/decision/DecisionIntelligenceService'
+import LivePipelineStore from '@/services/livePipeline/LivePipelineStore'
 import DiagnosticsStore from './DiagnosticsStore'
 import {
   DIAGNOSTIC_GROUPS,
@@ -35,13 +36,18 @@ import {
 class DiagnosticsManager {
   runDiagnostics(context = {}) {
     const timestamp = Date.now()
+    const livePipelineResult = context.pipelineResult || LivePipelineStore.getLatestResult()
+    const liveNotification = context.notificationResult || LivePipelineStore.getLatestNotification()
+
     const items = [
       this.evaluateRobotPlatform(timestamp),
       this.evaluateAIStatus(timestamp),
-      this.evaluateVisionStatus(timestamp),
-      this.evaluateIdentityStatus(context.identityResult, timestamp),
-      this.evaluateDecisionStatus(timestamp),
-      this.evaluateNotificationStatus(timestamp),
+      this.evaluateVisionStatus(timestamp, livePipelineResult),
+      this.evaluateLivePipelineStatus(timestamp, livePipelineResult),
+      this.evaluateIdentityStatus(context.identityResult || livePipelineResult?.identity, timestamp),
+      this.evaluateBehaviourStatus(timestamp, livePipelineResult),
+      this.evaluateDecisionStatus(timestamp, livePipelineResult),
+      this.evaluateNotificationStatus(timestamp, liveNotification),
       this.evaluateBaseStationStatus(timestamp),
       this.evaluateCloudStatus(timestamp),
       this.evaluateWearableStatus(timestamp),
@@ -49,8 +55,8 @@ class DiagnosticsManager {
 
     const snapshot = {
       status: this.deriveOverallStatus(items),
-      version: 'v0.13.4',
-      module: 'M2.1 Diagnostics Framework',
+      version: 'v0.13.5',
+      module: 'Live Pipeline Diagnostics Framework',
       timestamp,
       summary: this.createSummary(items),
       counts: this.createCounts(items),
@@ -128,17 +134,27 @@ class DiagnosticsManager {
     })
   }
 
-  evaluateVisionStatus(timestamp) {
+  evaluateVisionStatus(timestamp, pipelineResult = null) {
     const status = VisionService.getStatus()
-    const ready = Boolean(status.cameraAvailable || status.localProcessingEnabled)
+    const ready = Boolean(
+      status.cameraAvailable ||
+      status.localProcessingEnabled ||
+      pipelineResult?.status === 'success'
+    )
 
     return createDiagnosticItem({
       id: 'vision-system',
       label: 'Vision System',
       group: DIAGNOSTIC_GROUPS.PERCEPTION,
       status: ready ? DIAGNOSTIC_STATUS.READY : DIAGNOSTIC_STATUS.WAITING,
-      summary: `Vision mode: ${status.activeMode || 'unknown'}. Camera ${status.cameraAvailable ? 'available' : 'not available'}.`,
-      details: status,
+      summary: pipelineResult
+        ? `Vision mode: ${status.activeMode || 'unknown'}. Live pipeline frame ${pipelineResult.performance?.processedFrameCount || 0} processed.`
+        : `Vision mode: ${status.activeMode || 'unknown'}. Camera ${status.cameraAvailable ? 'available' : 'not available'}.`,
+      details: {
+        ...status,
+        livePipelineFrameCount: pipelineResult?.performance?.processedFrameCount || 0,
+        latestRisk: pipelineResult?.risk || null,
+      },
       checks: [
         createDiagnosticCheck({
           id: 'camera-available',
@@ -154,6 +170,36 @@ class DiagnosticsManager {
           id: 'continuous-monitoring',
           label: 'Continuous monitoring',
           passed: Boolean(status.continuousMonitoringEnabled),
+        }),
+      ],
+      timestamp,
+    })
+  }
+
+  evaluateLivePipelineStatus(timestamp, pipelineResult = null) {
+    const status = LivePipelineStore.getStatus()
+    const active = Boolean(pipelineResult)
+
+    return createDiagnosticItem({
+      id: 'live-pipeline-wiring',
+      label: 'Live Pipeline Wiring',
+      group: DIAGNOSTIC_GROUPS.PERCEPTION,
+      status: active ? DIAGNOSTIC_STATUS.ONLINE : DIAGNOSTIC_STATUS.WAITING,
+      summary: active
+        ? `Live pipeline is online. Last processed frame: ${status.processedFrameCount}. Risk: ${status.latestRiskLabel}.`
+        : 'Live pipeline is waiting for the first camera frame.',
+      details: status,
+      checks: [
+        createDiagnosticCheck({
+          id: 'single-source-of-truth',
+          label: 'Single source of truth available',
+          passed: active,
+          summary: 'VisionPipeline output is the authoritative live state for downstream panels.',
+        }),
+        createDiagnosticCheck({
+          id: 'pipeline-result-stored',
+          label: 'Pipeline result stored',
+          passed: Boolean(LivePipelineStore.getLatestResult()),
         }),
       ],
       timestamp,
@@ -193,8 +239,44 @@ class DiagnosticsManager {
     })
   }
 
-  evaluateDecisionStatus(timestamp) {
-    const result = DecisionIntelligenceService.evaluate(null)
+  evaluateBehaviourStatus(timestamp, pipelineResult = null) {
+    const hasBehaviour = Boolean(
+      pipelineResult?.behaviourHistory ||
+      pipelineResult?.behaviourPattern ||
+      pipelineResult?.activityRecognition
+    )
+
+    return createDiagnosticItem({
+      id: 'behaviour-live-intelligence',
+      label: 'Behaviour Intelligence',
+      group: DIAGNOSTIC_GROUPS.BEHAVIOUR,
+      status: hasBehaviour ? DIAGNOSTIC_STATUS.READY : DIAGNOSTIC_STATUS.WAITING,
+      summary: hasBehaviour
+        ? pipelineResult.behaviourPattern?.summary || 'Behaviour intelligence is receiving live pipeline observations.'
+        : 'Behaviour intelligence is waiting for live pipeline observations.',
+      details: {
+        behaviourHistory: pipelineResult?.behaviourHistory || null,
+        behaviourPattern: pipelineResult?.behaviourPattern || null,
+        activityRecognition: pipelineResult?.activityRecognition || null,
+      },
+      checks: [
+        createDiagnosticCheck({
+          id: 'behaviour-history-live',
+          label: 'Behaviour history receives live data',
+          passed: Boolean(pipelineResult?.behaviourHistory),
+        }),
+        createDiagnosticCheck({
+          id: 'behaviour-pattern-live',
+          label: 'Behaviour pattern receives live data',
+          passed: Boolean(pipelineResult?.behaviourPattern),
+        }),
+      ],
+      timestamp,
+    })
+  }
+
+  evaluateDecisionStatus(timestamp, pipelineResult = null) {
+    const result = pipelineResult?.decisionIntelligence || DecisionIntelligenceService.evaluate(null)
     const hasSafeResult = Boolean(result && result.status)
 
     return createDiagnosticItem({
@@ -202,12 +284,18 @@ class DiagnosticsManager {
       label: 'Decision Engine',
       group: DIAGNOSTIC_GROUPS.DECISION,
       status: hasSafeResult ? DIAGNOSTIC_STATUS.READY : DIAGNOSTIC_STATUS.ERROR,
-      summary: hasSafeResult
-        ? 'Decision layer responds safely to diagnostics input.'
-        : 'Decision layer did not return a safe diagnostics response.',
+      summary: pipelineResult?.decisionIntelligence
+        ? result.summary
+        : hasSafeResult
+          ? 'Decision layer responds safely to diagnostics input.'
+          : 'Decision layer did not return a safe diagnostics response.',
       details: {
         status: result?.status || 'missing',
         provider: result?.provider || 'decision-intelligence-service',
+        live: Boolean(pipelineResult?.decisionIntelligence),
+        decisionCount: result?.decisionResult?.decisionCount || 0,
+        priorityCount: result?.priorityResult?.priorityCount || 0,
+        recommendationCount: result?.recommendationResult?.recommendationCount || 0,
       },
       checks: [
         createDiagnosticCheck({
@@ -220,17 +308,19 @@ class DiagnosticsManager {
     })
   }
 
-  evaluateNotificationStatus(timestamp) {
-    const status = typeof NotificationManager.getStatus === 'function'
+  evaluateNotificationStatus(timestamp, liveNotification = null) {
+    const status = liveNotification || (typeof NotificationManager.getStatus === 'function'
       ? NotificationManager.getStatus()
-      : this.createFallbackNotificationStatus()
+      : this.createFallbackNotificationStatus())
 
     return createDiagnosticItem({
       id: 'notification-alerting',
       label: 'Notification & Alerting',
       group: DIAGNOSTIC_GROUPS.NOTIFICATION,
-      status: DIAGNOSTIC_STATUS.READY,
-      summary: 'Notification framework is available for robot, trusted-user and future wearable alert paths.',
+      status: liveNotification ? DIAGNOSTIC_STATUS.READY : DIAGNOSTIC_STATUS.READY,
+      summary: liveNotification
+        ? liveNotification.summary
+        : 'Notification framework is available for robot, trusted-user and future wearable alert paths.',
       details: status,
       checks: [
         createDiagnosticCheck({
@@ -241,7 +331,7 @@ class DiagnosticsManager {
         createDiagnosticCheck({
           id: 'trusted-contact-alerts',
           label: 'Trusted contact alerts',
-          passed: Boolean(status.trustedContactAlertsReady),
+          passed: Boolean(status.trustedContactAlertsReady || status.targets),
           summary: 'Planned external delivery path for family, carers and trusted contacts.',
         }),
         createDiagnosticCheck({

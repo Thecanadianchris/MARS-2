@@ -10,16 +10,19 @@
  * MARS Vision stack.
  *
  * Version:
- * v0.11.3
+ * v0.13.5
  *
  * Date Code:
- * 290626
+ * 050726
  * ==========================================================
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, CameraOff, RefreshCcw, ScanEye } from 'lucide-react'
 import VisionDiagnosticsPanel from './VisionDiagnosticsPanel'
+import ContinuousVisionMonitor from '@/services/vision/ContinuousVisionMonitor'
+import VisionService from '@/services/vision/VisionService'
+import { DiagnosticsManager } from '@/services/diagnostics'
 
 export default function VisionPanel() {
   const videoRef = useRef(null)
@@ -32,8 +35,12 @@ export default function VisionPanel() {
   const [description, setDescription] = useState('')
   const [snapshot, setSnapshot] = useState('')
   const [lastCaptureTime, setLastCaptureTime] = useState(null)
+  const [livePipelineResult, setLivePipelineResult] = useState(null)
+  const [livePipelineError, setLivePipelineError] = useState('')
 
   const stopCamera = () => {
+    ContinuousVisionMonitor.stop()
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
@@ -42,6 +49,13 @@ export default function VisionPanel() {
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
+
+    VisionService.updateStatus({
+      cameraActive: false,
+      cameraAvailable: false,
+      activeMode: 'idle',
+      continuousMonitoringEnabled: false,
+    })
 
     setActive(false)
   }
@@ -72,7 +86,14 @@ export default function VisionPanel() {
         await videoRef.current.play()
       }
 
+      VisionService.updateStatus({
+        cameraAvailable: true,
+        cameraActive: true,
+        activeMode: 'camera_preview',
+      })
+
       setActive(true)
+      startLivePipeline()
     } catch (err) {
       console.error('Camera error:', err)
 
@@ -84,7 +105,40 @@ export default function VisionPanel() {
         setError('Camera could not be started.')
       }
 
+      VisionService.updateStatus({
+        cameraActive: false,
+        cameraAvailable: false,
+        activeMode: 'camera_error',
+      })
+
       setActive(false)
+    }
+  }
+
+  const startLivePipeline = () => {
+    if (!videoRef.current) {
+      return
+    }
+
+    setLivePipelineError('')
+
+    try {
+      ContinuousVisionMonitor.start(videoRef.current, (result) => {
+        if (result?.status === 'error') {
+          setLivePipelineError(result.summary || 'Live pipeline processing failed.')
+        } else {
+          setLivePipelineError('')
+        }
+
+        setLivePipelineResult(result)
+        DiagnosticsManager.runDiagnostics({
+          pipelineResult: result,
+          identityResult: result?.identity,
+          notificationResult: result?.notificationEngine,
+        })
+      })
+    } catch (err) {
+      setLivePipelineError(err.message || 'Live pipeline could not be started.')
     }
   }
 
@@ -128,6 +182,10 @@ export default function VisionPanel() {
   }
 
   const visionResult = useMemo(() => {
+    if (livePipelineResult) {
+      return livePipelineResult
+    }
+
     return {
       personDetected: Boolean(snapshot),
       bodyState: snapshot ? 'unknown' : 'unknown',
@@ -137,9 +195,25 @@ export default function VisionPanel() {
       confidence: snapshot ? 0.65 : 0,
       timestamp: lastCaptureTime,
     }
-  }, [active, snapshot, lastCaptureTime])
+  }, [active, snapshot, lastCaptureTime, livePipelineResult])
 
   const observation = useMemo(() => {
+    if (livePipelineResult?.observationStream) {
+      return {
+        type: livePipelineResult.observationStream.primaryObservation || 'live_pipeline_observation',
+        personPresent: Boolean(livePipelineResult.detections?.people),
+        bodyState:
+          livePipelineResult.bodyState?.posture ||
+          livePipelineResult.poseSummary?.posture ||
+          'unknown',
+        movement: livePipelineResult.movement?.state || 'unknown',
+        activity: livePipelineResult.activityRecognition?.activity || 'unknown',
+        faceState: livePipelineResult.faceFoundation?.state || 'foundation_ready',
+        confidence: (livePipelineResult.risk?.confidence || 0) / 100,
+        timestamp: livePipelineResult.timestamp,
+      }
+    }
+
     if (!snapshot) {
       return null
     }
@@ -154,9 +228,13 @@ export default function VisionPanel() {
       confidence: 0.65,
       timestamp: lastCaptureTime,
     }
-  }, [active, snapshot, lastCaptureTime])
+  }, [active, snapshot, lastCaptureTime, livePipelineResult])
 
   const personalObservation = useMemo(() => {
+    if (livePipelineResult?.personalObservation) {
+      return livePipelineResult.personalObservation
+    }
+
     if (!description) {
       return null
     }
@@ -166,7 +244,7 @@ export default function VisionPanel() {
       description,
       timestamp: lastCaptureTime,
     }
-  }, [description, lastCaptureTime])
+  }, [description, lastCaptureTime, livePipelineResult])
 
   useEffect(() => {
     if (active) {
@@ -216,6 +294,21 @@ export default function VisionPanel() {
       {error && (
         <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
           {error}
+        </div>
+      )}
+
+      {livePipelineError && (
+        <div className="mt-3 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-sm text-amber-200">
+          {livePipelineError}
+        </div>
+      )}
+
+      {livePipelineResult && (
+        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-100">
+          <div className="font-semibold text-emerald-300">Live Pipeline Online</div>
+          <div className="mt-1 text-emerald-100/80">
+            Frame {livePipelineResult.performance?.processedFrameCount || 0} · Risk {livePipelineResult.risk?.level ?? 0}/10 · {livePipelineResult.risk?.label || 'unknown'}
+          </div>
         </div>
       )}
 
@@ -282,7 +375,11 @@ export default function VisionPanel() {
           personalObservation={personalObservation}
           frameStatus={{
             cameraReady: active,
-            message: active ? 'Camera stream available' : 'Camera stream not ready',
+            message: livePipelineResult
+              ? 'Camera stream feeding live pipeline'
+              : active
+                ? 'Camera stream available; waiting for live pipeline frame'
+                : 'Camera stream not ready',
           }}
         />
       </div>
