@@ -11,7 +11,7 @@
  * details of Identity, Vision, AI, Decision or Notifications.
  *
  * Version:
- * v0.13.5
+ * v0.13.6
  *
  * Date Code:
  * 050726
@@ -24,6 +24,7 @@ import IdentityDiagnosticsService from '@/services/identity/IdentityDiagnosticsS
 import NotificationManager from '@/services/notifications/NotificationManager'
 import DecisionIntelligenceService from '@/services/decision/DecisionIntelligenceService'
 import LivePipelineStore from '@/services/livePipeline/LivePipelineStore'
+import PipelineHealthService from '@/services/pipelineHealth/PipelineHealthService'
 import DiagnosticsStore from './DiagnosticsStore'
 import {
   DIAGNOSTIC_GROUPS,
@@ -44,6 +45,8 @@ class DiagnosticsManager {
       this.evaluateAIStatus(timestamp),
       this.evaluateVisionStatus(timestamp, livePipelineResult),
       this.evaluateLivePipelineStatus(timestamp, livePipelineResult),
+      this.evaluateDiagnosticsStability(timestamp, livePipelineResult),
+      this.evaluatePipelineHealthStatus(timestamp, livePipelineResult, liveNotification),
       this.evaluateIdentityStatus(context.identityResult || livePipelineResult?.identity, timestamp),
       this.evaluateBehaviourStatus(timestamp, livePipelineResult),
       this.evaluateDecisionStatus(timestamp, livePipelineResult),
@@ -53,10 +56,20 @@ class DiagnosticsManager {
       this.evaluateWearableStatus(timestamp),
     ]
 
+    const pipelineHealth = PipelineHealthService.evaluate({
+      items,
+      pipelineResult: livePipelineResult,
+      notificationResult: liveNotification,
+      timestamp,
+    })
+
     const snapshot = {
-      status: this.deriveOverallStatus(items),
-      version: 'v0.13.5',
-      module: 'Live Pipeline Diagnostics Framework',
+      status: this.deriveOverallStatus(items, pipelineHealth),
+      version: 'v0.13.6',
+      module: 'Diagnostics Stabilisation Framework',
+      stability: this.createStabilityReport(items, livePipelineResult),
+      pipelineHealth,
+      capabilityState: pipelineHealth.capabilityState,
       timestamp,
       summary: this.createSummary(items),
       counts: this.createCounts(items),
@@ -177,16 +190,22 @@ class DiagnosticsManager {
   }
 
   evaluateLivePipelineStatus(timestamp, pipelineResult = null) {
-    const status = LivePipelineStore.getStatus()
+    const status = LivePipelineStore.getStatus(timestamp)
     const active = Boolean(pipelineResult)
 
     return createDiagnosticItem({
       id: 'live-pipeline-wiring',
       label: 'Live Pipeline Wiring',
       group: DIAGNOSTIC_GROUPS.PERCEPTION,
-      status: active ? DIAGNOSTIC_STATUS.ONLINE : DIAGNOSTIC_STATUS.WAITING,
+      status: active
+        ? status.stale
+          ? DIAGNOSTIC_STATUS.DEGRADED
+          : DIAGNOSTIC_STATUS.ONLINE
+        : DIAGNOSTIC_STATUS.WAITING,
       summary: active
-        ? `Live pipeline is online. Last processed frame: ${status.processedFrameCount}. Risk: ${status.latestRiskLabel}.`
+        ? status.stale
+          ? `Live pipeline has data but the latest frame is stale (${status.ageMs} ms old).`
+          : `Live pipeline is online. Last processed frame: ${status.processedFrameCount}. Risk: ${status.latestRiskLabel}.`
         : 'Live pipeline is waiting for the first camera frame.',
       details: status,
       checks: [
@@ -200,6 +219,123 @@ class DiagnosticsManager {
           id: 'pipeline-result-stored',
           label: 'Pipeline result stored',
           passed: Boolean(LivePipelineStore.getLatestResult()),
+        }),
+        createDiagnosticCheck({
+          id: 'pipeline-not-stale',
+          label: 'Pipeline result not stale',
+          passed: !status.stale,
+          summary: 'A stale frame degrades diagnostics but does not crash the application.',
+        }),
+      ],
+      timestamp,
+    })
+  }
+
+
+  evaluateDiagnosticsStability(timestamp, pipelineResult = null) {
+    const storeStatus = DiagnosticsStore.getStatus()
+    const liveStatus = LivePipelineStore.getStatus(timestamp)
+    const requiredLiveFields = [
+      'identity',
+      'behaviourHistory',
+      'behaviourPattern',
+      'decisionIntelligence',
+      'notificationEngine',
+    ]
+    const missingFields = pipelineResult
+      ? requiredLiveFields.filter((fieldName) => !pipelineResult[fieldName])
+      : requiredLiveFields
+    const hasLiveResult = Boolean(pipelineResult)
+    const stable = hasLiveResult && missingFields.length === 0 && !liveStatus.stale
+
+    return createDiagnosticItem({
+      id: 'diagnostics-stabilisation',
+      label: 'Diagnostics Stabilisation',
+      group: DIAGNOSTIC_GROUPS.PLATFORM,
+      status: stable
+        ? DIAGNOSTIC_STATUS.READY
+        : hasLiveResult
+          ? DIAGNOSTIC_STATUS.DEGRADED
+          : DIAGNOSTIC_STATUS.WAITING,
+      summary: stable
+        ? 'Diagnostics are reading a complete, current live pipeline snapshot.'
+        : hasLiveResult
+          ? `Diagnostics detected ${missingFields.length} missing live field(s) or stale pipeline data.`
+          : 'Diagnostics stabilisation is waiting for the first live pipeline snapshot.',
+      details: {
+        diagnosticsStore: storeStatus,
+        livePipeline: liveStatus,
+        requiredLiveFields,
+        missingFields,
+        liveResultAvailable: hasLiveResult,
+      },
+      checks: [
+        createDiagnosticCheck({
+          id: 'diagnostics-store-active',
+          label: 'Diagnostics store active',
+          passed: true,
+        }),
+        createDiagnosticCheck({
+          id: 'live-result-present',
+          label: 'Live pipeline result present',
+          passed: hasLiveResult,
+        }),
+        createDiagnosticCheck({
+          id: 'live-result-complete',
+          label: 'Required live fields present',
+          passed: missingFields.length === 0,
+          summary: missingFields.length === 0
+            ? 'All required live pipeline fields are available to diagnostics.'
+            : `Missing fields: ${missingFields.join(', ')}`,
+        }),
+        createDiagnosticCheck({
+          id: 'live-result-current',
+          label: 'Live pipeline result current',
+          passed: !liveStatus.stale,
+          summary: liveStatus.ageMs === null
+            ? 'No live frame age is available yet.'
+            : `Latest frame age: ${liveStatus.ageMs} ms.`,
+        }),
+      ],
+      timestamp,
+    })
+  }
+
+  evaluatePipelineHealthStatus(timestamp, pipelineResult = null, liveNotification = null) {
+    const health = PipelineHealthService.evaluate({
+      items: [],
+      pipelineResult,
+      notificationResult: liveNotification,
+      timestamp,
+    })
+
+    return createDiagnosticItem({
+      id: 'pipeline-health-summary',
+      label: 'Pipeline Health Summary',
+      group: DIAGNOSTIC_GROUPS.PLATFORM,
+      status: health.status,
+      summary: health.summary,
+      details: health,
+      checks: [
+        createDiagnosticCheck({
+          id: 'pipeline-live',
+          label: 'Pipeline live data available',
+          passed: health.live,
+          summary: health.live
+            ? 'Live data is current and available to diagnostics.'
+            : 'Diagnostics are waiting for current live pipeline data.',
+        }),
+        createDiagnosticCheck({
+          id: 'stage-model-created',
+          label: 'Stage health model created',
+          passed: health.stages.length >= 6,
+          summary: `${health.stages.length} pipeline stage(s) reported.`,
+        }),
+        createDiagnosticCheck({
+          id: 'latency-metrics-available',
+          label: 'Latency metrics available',
+          passed: Number.isFinite(health.metrics.latencyMs),
+          summary: `Latest latency: ${health.metrics.latencyMs} ms.`,
         }),
       ],
       timestamp,
@@ -433,8 +569,11 @@ class DiagnosticsManager {
     }
   }
 
-  deriveOverallStatus(items) {
+  deriveOverallStatus(items, pipelineHealth = null) {
     const statuses = items.map((item) => item.status)
+    if (pipelineHealth?.status) {
+      statuses.push(pipelineHealth.status)
+    }
 
     if (statuses.includes(DIAGNOSTIC_STATUS.ERROR)) {
       return DIAGNOSTIC_STATUS.ERROR
@@ -463,7 +602,31 @@ class DiagnosticsManager {
     const readyCount = items.filter((item) => getDiagnosticRank(item.status) >= getDiagnosticRank(DIAGNOSTIC_STATUS.READY)).length
     const waitingCount = items.filter((item) => item.status === DIAGNOSTIC_STATUS.WAITING).length
 
-    return `Diagnostics framework active. ${readyCount}/${items.length} subsystem(s) ready or online. ${waitingCount} optional subsystem(s) waiting.`
+    return `Diagnostics stabilisation active. ${readyCount}/${items.length} subsystem(s) ready or online. ${waitingCount} optional subsystem(s) waiting.`
+  }
+
+
+  createStabilityReport(items, pipelineResult = null) {
+    const stabilityItem = items.find((item) => item.id === 'diagnostics-stabilisation')
+    const failedChecks = items.flatMap((item) => {
+      return item.checks
+        .filter((check) => !check.passed)
+        .map((check) => ({
+          itemId: item.id,
+          checkId: check.id,
+          label: check.label,
+          status: check.status,
+        }))
+    })
+
+    return {
+      version: 'v0.13.6',
+      objective: 'Diagnostics Stabilisation',
+      livePipelineSnapshotPresent: Boolean(pipelineResult),
+      status: stabilityItem?.status || DIAGNOSTIC_STATUS.UNKNOWN,
+      failedCheckCount: failedChecks.length,
+      failedChecks,
+    }
   }
 
   groupItems(items) {

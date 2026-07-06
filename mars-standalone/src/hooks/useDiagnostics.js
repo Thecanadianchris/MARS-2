@@ -11,7 +11,7 @@
  * inside presentation components.
  *
  * Version:
- * v0.13.4
+ * v0.13.6
  *
  * Date Code:
  * 040726

@@ -7,13 +7,14 @@
  *
  * Purpose:
  * Holds the latest diagnostics snapshot for the local MARS UI.
- * This is intentionally lightweight and local-only for v0.13.4.
+ * Stores a bounded snapshot history so diagnostics stability can
+ * be reviewed without adding external persistence.
  *
  * Version:
- * v0.13.4
+ * v0.13.6
  *
  * Date Code:
- * 040726
+ * 050726
  * ==========================================================
  */
 
@@ -21,7 +22,7 @@ class DiagnosticsStore {
   constructor() {
     this.snapshot = null
     this.history = []
-    this.maxHistory = 20
+    this.maxHistory = 30
   }
 
   getSnapshot() {
@@ -29,13 +30,28 @@ class DiagnosticsStore {
   }
 
   saveSnapshot(snapshot) {
-    this.snapshot = snapshot
-    this.history = [snapshot, ...this.history].slice(0, this.maxHistory)
+    const savedSnapshot = {
+      ...snapshot,
+      savedAt: Date.now(),
+    }
+
+    this.snapshot = savedSnapshot
+    this.history = [savedSnapshot, ...this.history].slice(0, this.maxHistory)
     return this.snapshot
   }
 
   getHistory() {
     return [...this.history]
+  }
+
+  getStatus() {
+    return {
+      hasSnapshot: Boolean(this.snapshot),
+      historyCount: this.history.length,
+      maxHistory: this.maxHistory,
+      latestStatus: this.snapshot?.status || 'waiting',
+      latestTimestamp: this.snapshot?.timestamp || null,
+    }
   }
 
   clear() {
