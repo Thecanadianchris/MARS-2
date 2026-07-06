@@ -6,11 +6,11 @@
  * useVoiceIntelligence
  *
  * Purpose:
- * React hook for the v0.14.0 Voice Intelligence Foundation UI.
+ * React hook for the v0.14.1.1 Voice Response Layer UI.
  * Keeps presentation components separate from voice service logic.
  *
  * Version:
- * v0.14.0
+ * v0.14.1.1
  * Date Code:
  * 060726
  * ==========================================================
@@ -22,34 +22,62 @@ import { VoiceService } from '@/services/voice'
 export default function useVoiceIntelligence() {
   const [snapshot, setSnapshot] = useState(() => VoiceService.getPanelSnapshot())
   const [lastResult, setLastResult] = useState(() => VoiceService.getLastIntent())
+  const [lastResponse, setLastResponse] = useState(() => VoiceService.getLastResponse())
 
-  const refresh = useCallback(() => {
+  const updateFromService = useCallback((result = VoiceService.getLastIntent()) => {
     const nextSnapshot = VoiceService.getPanelSnapshot()
     setSnapshot(nextSnapshot)
-    setLastResult(VoiceService.getLastIntent())
+    setLastResult(result)
+    setLastResponse(VoiceService.getLastResponse())
     return nextSnapshot
   }, [])
+
+  const refresh = useCallback(() => updateFromService(), [updateFromService])
+
+  const activateVoice = useCallback(() => {
+    const result = VoiceService.activate('voice-panel-button')
+    updateFromService(result)
+    return result
+  }, [updateFromService])
 
   const parseTranscript = useCallback((transcript) => {
     const result = VoiceService.evaluateTranscript(transcript, {
       source: 'voice-panel-manual-transcript',
     })
-    setLastResult(result)
-    setSnapshot(VoiceService.getPanelSnapshot())
+    updateFromService(result)
     return result
-  }, [])
+  }, [updateFromService])
+
+  const routeCommand = useCallback((transcript) => {
+    const result = VoiceService.routeCommand(transcript, {
+      source: 'voice-panel-command-route',
+    })
+    updateFromService(result)
+    return result
+  }, [updateFromService])
 
   const clearHistory = useCallback(() => {
     VoiceService.clearHistory()
     setLastResult(null)
+    setLastResponse(null)
     setSnapshot(VoiceService.getPanelSnapshot())
   }, [])
+
+  const resetActivation = useCallback(() => {
+    const result = VoiceService.resetActivation({ source: 'voice-panel-sleep-button' })
+    updateFromService(result)
+    return result
+  }, [updateFromService])
 
   return {
     snapshot,
     lastResult,
+    lastResponse,
     refresh,
+    activateVoice,
     parseTranscript,
+    routeCommand,
     clearHistory,
+    resetActivation,
   }
 }

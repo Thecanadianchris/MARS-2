@@ -7,11 +7,11 @@
  *
  * Purpose:
  * Parses text transcripts into voice intent candidates for
- * v0.14.0 without performing speech-to-text or live microphone
+ * v0.14.1 without performing speech-to-text or live microphone
  * capture.
  *
  * Version:
- * v0.14.0
+ * v0.14.1
  * Date Code:
  * 060726
  * ==========================================================
@@ -75,7 +75,7 @@ class VoiceIntentParser {
 
   getStatus() {
     return {
-      version: 'v0.14.0',
+      version: 'v0.14.1',
       ready: true,
       parser: 'VoiceIntentParser',
       accepts: 'text transcript',

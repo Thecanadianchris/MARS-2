@@ -6,12 +6,11 @@
  * VoiceFoundationSmokeTest
  *
  * Purpose:
- * Verifies the v0.14.0 Voice Intelligence Foundation service
- * architecture without live microphone or speech provider
- * dependencies.
+ * Verifies the v0.14.1.1 Voice Intelligence architecture without
+ * live microphone or speech provider dependencies.
  *
  * Version:
- * v0.14.0
+ * v0.14.1.1
  * Date Code:
  * 060726
  * ==========================================================
@@ -24,24 +23,28 @@ import {
   VoiceService,
   VOICE_DEFERRED_FEATURES,
   VOICE_FOUNDATION_FEATURES,
+  VOICE_ACTIVATION_FEATURES,
   VOICE_INTENT_STATUS,
 } from '../services/voice'
 
 beforeEach(() => {
   VoiceService.clearHistory()
+  VoiceService.resetActivation()
 })
 
 describe('Voice Intelligence Foundation Smoke Test', () => {
   test('provides a voice architecture status without live audio', () => {
     const status = VoiceService.getStatus()
 
-    expect(status.version).toBe('v0.14.0')
+    expect(status.version).toBe('v0.14.1.1')
     expect(status.architectureReady).toBe(true)
     expect(status.liveAudioEnabled).toBe(false)
-    expect(status.wakeWordEnabled).toBe(false)
+    expect(status.wakeWordEnabled).toBe(true)
+    expect(status.wakeWordSimulated).toBe(true)
     expect(status.speechToTextEnabled).toBe(false)
     expect(status.textToSpeechEnabled).toBe(false)
     expect(status.implementedFeatures).toEqual(expect.arrayContaining(VOICE_FOUNDATION_FEATURES))
+    expect(status.implementedFeatures).toEqual(expect.arrayContaining(VOICE_ACTIVATION_FEATURES))
     expect(status.deferredFeatures).toEqual(expect.arrayContaining(VOICE_DEFERRED_FEATURES))
   })
 
@@ -50,8 +53,9 @@ describe('Voice Intelligence Foundation Smoke Test', () => {
     const commands = VoiceCommandRegistry.listCommands()
 
     expect(registryStatus.ready).toBe(true)
-    expect(registryStatus.commandCount).toBeGreaterThanOrEqual(5)
-    expect(registryStatus.activeCount).toBeGreaterThanOrEqual(2)
+    expect(registryStatus.commandCount).toBeGreaterThanOrEqual(7)
+    expect(registryStatus.activeCount).toBeGreaterThanOrEqual(5)
+    expect(commands.map((command) => command.id)).toContain('wake-mars')
     expect(commands.map((command) => command.id)).toContain('voice-status')
     expect(commands.map((command) => command.id)).toContain('assistive-check')
   })
@@ -76,8 +80,9 @@ describe('Voice Intelligence Foundation Smoke Test', () => {
   })
 
   test('keeps voice routing non-medical and architecture-only', () => {
-    const result = VoiceService.evaluateTranscript('check protected user')
-    const routingText = `${result.summary} ${result.command?.description || ''}`.toLowerCase()
+    VoiceService.activate('test')
+    const result = VoiceService.routeCommand('check protected user')
+    const routingText = `${result.summary} ${result.command?.description || ''} ${result.route?.summary || ''}`.toLowerCase()
 
     expect(result.medicalDiagnosis).toBe(false)
     expect(result.liveAudio).toBe(false)

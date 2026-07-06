@@ -6,11 +6,12 @@
  * VoiceDiagnosticsService
  *
  * Purpose:
- * Reports Voice Intelligence Foundation health to the central
- * diagnostics framework without requiring microphone hardware.
+ * Reports Voice Intelligence health to the central diagnostics
+ * framework for v0.14.1.1 Voice Response Layer without
+ * requiring microphone hardware.
  *
  * Version:
- * v0.14.0
+ * v0.14.1.1
  * Date Code:
  * 060726
  * ==========================================================
@@ -23,26 +24,36 @@ class VoiceDiagnosticsService {
     const status = VoiceService.getStatus()
 
     return {
-      version: 'v0.14.0',
-      module: 'Voice Intelligence Foundation',
+      version: 'v0.14.1.1',
+      module: 'Voice Response Layer',
       status: status.architectureReady ? 'ready' : 'degraded',
       summary: status.architectureReady
-        ? 'Voice Foundation is architecture-ready. Live audio remains intentionally deferred.'
-        : 'Voice Foundation architecture is not ready.',
+        ? 'Voice activation, wake layer simulation, command routing and deterministic responses are architecture-ready. Live audio remains intentionally deferred.'
+        : 'Voice response layer architecture is not ready.',
       capabilities: {
         voiceService: true,
         commandRegistry: Boolean(status.commandRegistry?.ready),
         intentParser: Boolean(status.intentParser?.ready),
+        commandRouter: Boolean(status.commandRouter?.ready),
+        wakeWordService: Boolean(status.wakeWordService?.ready),
+        voiceResponseService: Boolean(status.voiceResponseService?.ready),
         diagnostics: true,
         liveAudio: false,
-        wakeWord: false,
+        wakeWord: true,
+        wakeWordSimulated: true,
         speechToText: false,
         textToSpeech: false,
       },
       commandRegistry: status.commandRegistry,
       intentParser: status.intentParser,
+      commandRouter: status.commandRouter,
+      wakeWordService: status.wakeWordService,
+      voiceResponseService: status.voiceResponseService,
       deferredFeatures: status.deferredFeatures,
       lastIntent: status.lastIntent,
+      lastRoute: status.lastRoute,
+      lastResponse: status.lastResponse,
+      responseCount: status.responseCount,
       historyCount: status.historyCount,
       capabilityState: status.capabilityState,
       safetyBoundary: status.safetyBoundary,

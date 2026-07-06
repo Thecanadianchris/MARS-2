@@ -511,10 +511,26 @@ class DiagnosticsManager {
           passed: Boolean(status.capabilities?.intentParser),
         }),
         createDiagnosticCheck({
+          id: 'voice-wake-word-service-ready',
+          label: 'Wake word service ready',
+          passed: Boolean(status.capabilities?.wakeWordService),
+        }),
+        createDiagnosticCheck({
+          id: 'voice-command-router-ready',
+          label: 'Command router ready',
+          passed: Boolean(status.capabilities?.commandRouter),
+        }),
+        createDiagnosticCheck({
+          id: 'voice-response-service-ready',
+          label: 'Voice response service ready',
+          passed: Boolean(status.capabilities?.voiceResponseService),
+          summary: 'Routed voice commands can now return deterministic visible UI responses.',
+        }),
+        createDiagnosticCheck({
           id: 'live-audio-deferred',
           label: 'Live audio intentionally deferred',
           passed: true,
-          summary: 'Microphone capture, wake word, STT and TTS belong to later v0.14.x milestones.',
+          summary: 'Microphone capture, STT and TTS belong to later v0.14.x milestones.',
         }),
       ],
       timestamp,

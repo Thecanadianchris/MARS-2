@@ -6,12 +6,12 @@
  * VoiceCommandRegistry
  *
  * Purpose:
- * Defines the command catalogue for the v0.14.0 Voice
+ * Defines the command catalogue for the v0.14.1 Voice
  * Intelligence Foundation without depending on live audio,
  * wake word detection, browser speech APIs or Android audio.
  *
  * Version:
- * v0.14.0
+ * v0.14.1
  * Date Code:
  * 060726
  * ==========================================================
@@ -31,6 +31,15 @@ export const VOICE_COMMAND_STATUS = Object.freeze({
 })
 
 export const DEFAULT_VOICE_COMMANDS = Object.freeze([
+  {
+    id: 'wake-mars',
+    phrase: 'wake mars',
+    aliases: ['hey mars', 'mars wake up', 'okay mars'],
+    category: VOICE_COMMAND_CATEGORIES.SYSTEM,
+    status: VOICE_COMMAND_STATUS.ACTIVE,
+    intent: 'WAKE_MARS',
+    description: 'Activates the simulated MARS voice command routing layer.',
+  },
   {
     id: 'voice-status',
     phrase: 'voice status',
@@ -66,6 +75,15 @@ export const DEFAULT_VOICE_COMMANDS = Object.freeze([
     status: VOICE_COMMAND_STATUS.ACTIVE,
     intent: 'CANCEL_COMMAND',
     description: 'Cancels the current voice command route.',
+  },
+  {
+    id: 'help',
+    phrase: 'help',
+    aliases: ['what can i say', 'list commands', 'available commands'],
+    category: VOICE_COMMAND_CATEGORIES.SYSTEM,
+    status: VOICE_COMMAND_STATUS.ACTIVE,
+    intent: 'HELP',
+    description: 'Lists currently registered voice commands and routes.',
   },
   {
     id: 'assistive-check',
@@ -123,7 +141,7 @@ class VoiceCommandRegistry {
     const deferredCount = commands.filter((command) => command.status === VOICE_COMMAND_STATUS.DEFERRED).length
 
     return {
-      version: 'v0.14.0',
+      version: 'v0.14.1',
       commandCount: commands.length,
       activeCount,
       plannedCount,
