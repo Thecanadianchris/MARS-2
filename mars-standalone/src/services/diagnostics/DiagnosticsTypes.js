@@ -41,6 +41,7 @@ export const DIAGNOSTIC_GROUPS = Object.freeze({
   BEHAVIOUR: 'Behaviour',
   DECISION: 'Decision',
   NOTIFICATION: 'Notification & Alerting',
+  VOICE: 'Voice',
   PLATFORM: 'Platform',
 })
 

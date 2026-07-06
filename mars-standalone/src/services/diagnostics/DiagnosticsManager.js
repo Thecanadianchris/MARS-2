@@ -25,6 +25,7 @@ import NotificationManager from '@/services/notifications/NotificationManager'
 import DecisionIntelligenceService from '@/services/decision/DecisionIntelligenceService'
 import LivePipelineStore from '@/services/livePipeline/LivePipelineStore'
 import PipelineHealthService from '@/services/pipelineHealth/PipelineHealthService'
+import VoiceDiagnosticsService from '@/services/voice/VoiceDiagnosticsService'
 import DiagnosticsStore from './DiagnosticsStore'
 import {
   DIAGNOSTIC_GROUPS,
@@ -51,6 +52,7 @@ class DiagnosticsManager {
       this.evaluateBehaviourStatus(timestamp, livePipelineResult),
       this.evaluateDecisionStatus(timestamp, livePipelineResult),
       this.evaluateNotificationStatus(timestamp, liveNotification),
+      this.evaluateVoiceStatus(timestamp),
       this.evaluateBaseStationStatus(timestamp),
       this.evaluateCloudStatus(timestamp),
       this.evaluateWearableStatus(timestamp),
@@ -481,6 +483,44 @@ class DiagnosticsManager {
     })
   }
 
+
+  evaluateVoiceStatus(timestamp) {
+    const status = VoiceDiagnosticsService.evaluate()
+
+    return createDiagnosticItem({
+      id: 'voice-intelligence-foundation',
+      label: 'Voice Intelligence Foundation',
+      group: DIAGNOSTIC_GROUPS.VOICE,
+      status: status.status === 'ready' ? DIAGNOSTIC_STATUS.READY : DIAGNOSTIC_STATUS.DEGRADED,
+      summary: status.summary,
+      details: status,
+      checks: [
+        createDiagnosticCheck({
+          id: 'voice-service-ready',
+          label: 'Voice service ready',
+          passed: Boolean(status.capabilities?.voiceService),
+        }),
+        createDiagnosticCheck({
+          id: 'voice-command-registry-ready',
+          label: 'Command registry ready',
+          passed: Boolean(status.capabilities?.commandRegistry),
+        }),
+        createDiagnosticCheck({
+          id: 'voice-intent-parser-ready',
+          label: 'Intent parser ready',
+          passed: Boolean(status.capabilities?.intentParser),
+        }),
+        createDiagnosticCheck({
+          id: 'live-audio-deferred',
+          label: 'Live audio intentionally deferred',
+          passed: true,
+          summary: 'Microphone capture, wake word, STT and TTS belong to later v0.14.x milestones.',
+        }),
+      ],
+      timestamp,
+    })
+  }
+
   evaluateBaseStationStatus(timestamp) {
     return createDiagnosticItem({
       id: 'base-station',
@@ -602,7 +642,7 @@ class DiagnosticsManager {
     const readyCount = items.filter((item) => getDiagnosticRank(item.status) >= getDiagnosticRank(DIAGNOSTIC_STATUS.READY)).length
     const waitingCount = items.filter((item) => item.status === DIAGNOSTIC_STATUS.WAITING).length
 
-    return `Diagnostics stabilisation active. ${readyCount}/${items.length} subsystem(s) ready or online. ${waitingCount} optional subsystem(s) waiting.`
+    return `Diagnostics and Voice Foundation active. ${readyCount}/${items.length} subsystem(s) ready or online. ${waitingCount} optional subsystem(s) waiting.`
   }
 
 
