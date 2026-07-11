@@ -44,6 +44,10 @@ class VoiceDiagnosticsService {
         speechToText: false,
         textToSpeech: false,
       },
+      // Real Web Speech API browser capability (separate from the
+      // simulated command-routing flags above). Chat tab uses this
+      // directly and live.
+      browserSpeechCapability: status.browserSpeechCapability,
       commandRegistry: status.commandRegistry,
       intentParser: status.intentParser,
       commandRouter: status.commandRouter,

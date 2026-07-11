@@ -19,7 +19,7 @@
  */
 
 import { useState } from 'react'
-import { MessageSquareText, Mic, Power, RefreshCw, Route, ShieldCheck, Volume2, XCircle } from 'lucide-react'
+import { AudioLines, MessageSquareText, Mic, Power, RefreshCw, Route, ShieldCheck, Volume2, XCircle } from 'lucide-react'
 import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
 import useVoiceIntelligence from '@/hooks/useVoiceIntelligence'
 
@@ -82,6 +82,28 @@ export default function VoicePanel() {
           {wakeState === 'listening'
             ? 'MARS is listening. Enter a command and press Route Command.'
             : 'MARS is sleeping. Press Wake MARS before routing commands.'}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center gap-2 text-cyan-300">
+          <AudioLines size={16} />
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Browser Audio Capability</h2>
+        </div>
+
+        <p className="mt-2 text-xs leading-relaxed text-slate-400">
+          Real Web Speech API support detected in this browser. This is separate from the simulated command routing below — the Chat tab uses this capability directly for live microphone input and spoken output.
+        </p>
+
+        <div className="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
+          <div className={`rounded-xl border p-3 ${snapshot.browserSpeechCapability?.speechToText ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200' : 'border-red-400/20 bg-red-500/10 text-red-200'}`}>
+            <div className="text-sm font-bold">{snapshot.browserSpeechCapability?.speechToText ? 'Supported' : 'Unavailable'}</div>
+            <div className="mt-1 uppercase tracking-widest opacity-70">Speech-to-Text</div>
+          </div>
+          <div className={`rounded-xl border p-3 ${snapshot.browserSpeechCapability?.textToSpeech ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200' : 'border-red-400/20 bg-red-500/10 text-red-200'}`}>
+            <div className="text-sm font-bold">{snapshot.browserSpeechCapability?.textToSpeech ? 'Supported' : 'Unavailable'}</div>
+            <div className="mt-1 uppercase tracking-widest opacity-70">Text-to-Speech</div>
+          </div>
         </div>
       </section>
 

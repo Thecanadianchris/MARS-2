@@ -25,6 +25,7 @@ import VoiceIntentParser from './VoiceIntentParser'
 import VoiceCommandRouter from './VoiceCommandRouter'
 import WakeWordService from './WakeWordService'
 import VoiceResponseService from './VoiceResponseService'
+import SpeechCapabilityService from './SpeechCapabilityService'
 
 export const VOICE_FOUNDATION_FEATURES = Object.freeze([
   'voice-service-interface',
@@ -256,6 +257,11 @@ class VoiceService {
       textToSpeechEnabled: false,
       naturalConversationEnabled: false,
       responseLayerEnabled: true,
+      // Real browser Web Speech API capability, separate from this
+      // simulated command-routing layer's own (still false) flags
+      // above. Chat tab consumes this directly for live mic input
+      // and spoken output. See SpeechCapabilityService for detail.
+      browserSpeechCapability: SpeechCapabilityService.getStatus(),
       voiceResponseService: VoiceResponseService.getStatus(),
       commandRegistry: registryStatus,
       intentParser: parserStatus,
@@ -299,6 +305,7 @@ class VoiceService {
       responseCount: status.responseCount,
       capabilityState: status.capabilityState,
       safetyBoundary: status.safetyBoundary,
+      browserSpeechCapability: status.browserSpeechCapability,
     }
   }
 }

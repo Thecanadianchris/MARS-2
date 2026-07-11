@@ -74,6 +74,41 @@ Shell sandbox never came back up this session (tried 4+ times). Two of the four 
 
 One thing worth knowing for later: the commit used `git add -A`, which also swept up (a) the doc-housekeeping file moves from earlier in the day — those are now version-controlled for the first time, and (b) `CapabilityRouter.js`, which git showed as `create mode`, meaning it had never actually been committed before — it was untracked scaffolding sitting on disk this whole time, on every branch. So this one commit mixes three unrelated things (Notes rename, doc housekeeping, CapabilityRouter entering history). Not harmful — tests passed pre-commit and the other two additions are inert docs/dead code — but not a clean single-purpose commit if it's ever worth reverting just the rename.
 
+**v0.14.2 Step 2 — Conversation Diagnostics Panel — built, tested, UI-verified, committed, pushed.** Scoped it first: grepped the whole app and confirmed `NaturalConversationEngine` (Step 1's output) had zero UI surface — `ChatPanel.jsx` runs entirely separate regex-based reply logic and was untouched. Built the diagnostics-panel pattern the project already uses (VoicePanel's template): `hooks/useConversationIntelligence.js`, `components/conversation/ConversationPanel.jsx` + `index.js`, wired in as a new "CONV" tab in `Control.jsx`, plus `ConversationPanelSmokeTest.test.js` (4 new tests — caught and fixed one bad assertion myself before handing off, `turnCount` doesn't increment on a single turn). Christian ran the full validation: 29/29 test files, 99/99 tests, clean build, release-check green. I then did manual UI verification myself via browser automation against the live dev server — sent a vision-routed turn and a memory-routed turn, both matched the engine's logic exactly, reset worked, zero console errors, and separately re-confirmed the Notes rename renders correctly live too. Wrote `Engineering_Manifest_v0.14.2_Step_2_Conversation_Diagnostics_Panel.md` directly into `manifest-history/` (the new authoritative location) with the full record. Committed and pushed to `feature/v0.13.0-identity-foundation`.
+
+Deliberately did NOT mark v0.14.2 "Complete" in the MVCH roadmap — its original description says "shared chat/voice routing," which this diagnostics panel intentionally does not do (that's wiring the engine into live `ChatPanel`, a bigger and separate decision). MVCH stays "In Progress" honestly.
+
 **Still open:**
-- Continue v0.14.2 to completion / scope v0.14.3 — real feature work, not yet started this session.
+- Actually wiring `NaturalConversationEngine` into live `ChatPanel` (if that's ever wanted) — not started, deliberately deferred.
+- v0.14.3 (Voice Diagnostics & Audio Pipeline per MVCH) — not scoped yet.
+- `CapabilityRouter.js` — confirmed still fully inert/unwired (re-verified this session), now at least version-controlled for the first time.
 - Any new code from here still needs `npm test` / `npm run build` / `npm run release-check` (run from `mars-standalone/`) before commit — I still can't run those myself without shell access.
+
+## Update — same day, v0.14.3 scoped and built as a coupled piece with ChatPanel wiring
+
+Asked Christian whether to scope v0.14.3 (Voice Diagnostics & Audio Pipeline) and the deferred "wire `NaturalConversationEngine` into live ChatPanel" item separately or together. Scoping revealed they were touching the same surface: `ChatPanel.jsx` already had real, working Speech-to-Text (`VoiceInput.jsx`, Web Speech API) and Text-to-Speech (`ChatPanel`'s own `speak()`), completely disconnected from `services/voice/`, which explicitly declares `speechToTextEnabled: false` / `textToSpeechEnabled: false` / `liveAudioEnabled: false`. Presented three risk-tiered options; Christian explicitly chose the most invasive one — "Coupled: formalize + wire chat" — so both were built together.
+
+**Critical regression risk caught before writing code:** `NaturalConversationEngine`'s `ROUTE_TO_MEMORY` branch is a v0.15 placeholder, not real storage. ChatPanel's `remember`/`recall` commands are real and back the Notes tab. Naively routing all chat replies through the engine would have silently broken real memory. Flagged this to Christian, then designed around it structurally rather than by convention.
+
+**Built:**
+- `services/voice/SpeechCapabilityService.js` — honest detection of real `SpeechRecognition`/`SpeechSynthesis` browser support, extracted from the inline check that used to live only in `VoiceInput.jsx`. Surfaced additively as `browserSpeechCapability` on `VoiceService.getStatus()` and `VoiceDiagnosticsService.evaluate()` — the existing simulated-layer `false` flags are untouched and remain correct (VoicePanel itself is still typed-transcript only).
+- New "Browser Audio Capability" section in `VoicePanel.jsx` showing real STT/TTS support.
+- `services/conversation/ChatConversationBridge.js` — the regression-safe decision layer. The engine is now consulted on every chat turn (giving ChatPanel real pronoun/cancel/confirm/repeat handling it never had), but its response only replaces the reply when ChatPanel's own logic would otherwise return the generic fallback ("...How would you like me to assist?"), and only for plan actions genuinely new to chat (`cancel_action`, `continue_previous_action`, `ask_clarifying_question`, `route_to_vision`). `route_to_memory` is deliberately excluded. Every existing memory command and canned reply is structurally protected — they never produce the generic marker, so the bridge never touches them.
+- `ChatPanel.jsx` wired to call `NaturalConversationEngine.processTurn()` and pass both replies through `buildChatReply()`.
+- Two new smoke test files: `ChatConversationBridgeSmokeTest.test.js` (7 tests, including explicit REGRESSION GUARD tests) and `SpeechCapabilitySmokeTest.test.js` (3 tests).
+
+**Validated — test/build (Christian) + manual UI (me, live browser automation):** 31/31 test files, 109/109 tests, clean build, release-check green. Live UI pass confirmed: "remember my birthday is June 5th" still returns the real memory reply, "what is my birthday" still recalls it correctly, Notes tab shows the genuine persisted value, "who do you see right now" now gets the new engine-enhanced vision-routing reply, "never mind" now gets the new engine-enhanced cancellation reply, Voice tab's new Browser Audio Capability section renders Supported/Supported, zero console errors.
+
+Wrote `Engineering_Manifest_v0.14.3_Speech_Capability_and_Chat_Conversation_Bridge.md` into `manifest-history/` with the full record. Not yet committed — commands for Christian to run:
+```
+git add -A
+git commit -m "feat: v0.14.3 speech capability service + regression-safe chat conversation bridge"
+git push origin feature/v0.13.0-identity-foundation
+```
+
+MVCH note: still deliberately not marking v0.14.2's "shared chat/voice routing" as fully complete — ChatPanel now routes through the engine for a genuine subset of cases (cancel/confirm/clarify/vision), but memory routing is still local-only by design, so "In Progress" remains the honest framing.
+
+**Still open after this:**
+- `CapabilityRouter.js` — still confirmed unwired.
+- Real persistent memory inside the conversation engine itself — v0.15.
+- Android audio pipeline — not started.

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Mic, MicOff } from 'lucide-react'
+import SpeechCapabilityService from '@/services/voice/SpeechCapabilityService'
 
 export default function VoiceInput({
   onTranscript,
@@ -15,10 +16,7 @@ export default function VoiceInput({
   const recognitionRef = useRef(null)
   const listeningRef = useRef(false)
 
-  const SpeechRecognition =
-    typeof window !== 'undefined'
-      ? window.SpeechRecognition || window.webkitSpeechRecognition
-      : null
+  const SpeechRecognition = SpeechCapabilityService.getSpeechRecognitionConstructor()
 
   const isSupported = Boolean(SpeechRecognition)
 

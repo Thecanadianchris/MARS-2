@@ -39,3 +39,4 @@ export {
 } from './VoiceCommandRouter'
 
 export { default as VoiceResponseService, VOICE_RESPONSE_STATUS } from './VoiceResponseService'
+export { default as SpeechCapabilityService } from './SpeechCapabilityService'

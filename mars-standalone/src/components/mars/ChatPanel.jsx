@@ -6,6 +6,7 @@ import QuickCommands from '@/components/mars/QuickCommands'
 import VoiceInput from '@/components/mars/VoiceInput'
 import { createLocalMarsReply } from '@/components/mars/marsConfig'
 import { clearMemory, recall, recallAll, remember } from '@/components/mars/memory'
+import { NaturalConversationEngine, buildChatReply } from '@/services/conversation'
 
 const STORAGE_KEY = 'mars_messages_v1'
 
@@ -190,7 +191,9 @@ export default function ChatPanel({ mode, pendingMessage, onConsumePending }) {
 
     await new Promise((resolve) => setTimeout(resolve, 350))
 
-    const reply = createMemoryAwareReply(content)
+    const localReply = createMemoryAwareReply(content)
+    const engineResult = NaturalConversationEngine.processTurn(content)
+    const reply = buildChatReply({ localReply, engineResult })
 
     const marsMsg = {
       id: Date.now() + 1,
