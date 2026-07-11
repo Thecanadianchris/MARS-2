@@ -23,3 +23,4 @@ export { default as ConversationPlanner, CONVERSATION_PLAN_ACTIONS } from './Con
 export { default as ConversationDiagnosticsService } from './ConversationDiagnosticsService'
 export { default as NaturalConversationEngine } from './NaturalConversationEngine'
 export { buildChatReply, isGenericFallback, shouldUseConversationResponse, GENERIC_FALLBACK_MARKER } from './ChatConversationBridge'
+export { buildReasonedChatReply, shouldEscalateToReasoning } from './ChatReasoningBridge'

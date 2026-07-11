@@ -6,7 +6,7 @@ import QuickCommands from '@/components/mars/QuickCommands'
 import VoiceInput from '@/components/mars/VoiceInput'
 import { createLocalMarsReply } from '@/components/mars/marsConfig'
 import { clearMemory, recall, recallAll, remember } from '@/components/mars/memory'
-import { NaturalConversationEngine, buildChatReply } from '@/services/conversation'
+import { NaturalConversationEngine, buildChatReply, buildReasonedChatReply } from '@/services/conversation'
 
 const STORAGE_KEY = 'mars_messages_v1'
 
@@ -193,19 +193,24 @@ export default function ChatPanel({ mode, pendingMessage, onConsumePending }) {
 
     const localReply = createMemoryAwareReply(content)
     const engineResult = NaturalConversationEngine.processTurn(content)
-    const reply = buildChatReply({ localReply, engineResult })
+    const bridgedReply = buildChatReply({ localReply, engineResult })
+
+    // v0.14.4: only generic-fallback turns escalate to the AI
+    // reasoning chain (Local → Home → Cloud). Memory commands and
+    // canned replies are structurally protected — see ChatReasoningBridge.
+    const reasoned = await buildReasonedChatReply({ bridgedReply, content })
 
     const marsMsg = {
       id: Date.now() + 1,
       role: 'assistant',
-      content: reply,
-      model_used: mode
+      content: reasoned.reply,
+      model_used: reasoned.escalated ? reasoned.provider : mode
     }
 
     setMessages((prev) => [...prev, marsMsg])
 
     setBusy(false)
-    speak(reply)
+    speak(reasoned.reply)
   }
 
   const clearMessages = () => {

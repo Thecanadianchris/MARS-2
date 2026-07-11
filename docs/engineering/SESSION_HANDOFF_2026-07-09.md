@@ -112,3 +112,15 @@ MVCH note: still deliberately not marking v0.14.2's "shared chat/voice routing" 
 - `CapabilityRouter.js` — still confirmed unwired.
 - Real persistent memory inside the conversation engine itself — v0.15.
 - Android audio pipeline — not started.
+
+**Confirmed committed and pushed.** Christian confirmed the v0.14.3 commit went through to `feature/v0.13.0-identity-foundation`. Updated `MVCH_Master_Version_Control_History.md` (v0.14.3 row marked ✅ Complete, "Voice Audio Pipeline & Chat/Voice Bridge" moved into the Completed milestones list) and `MEM-0005_Manifest_5.0_Claude_Takeover.md` (Section 1 baseline, Section 3 architecture table, Section 2b manifest trail, Section 5 roadmap, Section 6 open items, Section 7 archive note all refreshed to the current 31-file/109-test, v0.14.3-complete state; added a "Last Updated: 11 July 2026" line). v0.14.2 deliberately still shown as "In Progress" in both docs, consistent with the reasoning already recorded above — memory routing stays local-only by design.
+
+**Next up:** scope v0.15 Memory Intelligence Foundation. Two decisions to make going in: (1) whether `NaturalConversationEngine` should start dispatching through `CapabilityRouter.js`, still confirmed unwired; (2) whether v0.15 absorbs the existing `memory.js`/Notes-tab store or builds as a separate system alongside it.
+
+## Update — same day, paused mid-decision on a new AI milestone (v0.14.4)
+
+Christian asked whether the roadmap plans for a real LLM/AI, since `NaturalConversationEngine` is fully deterministic (no model call at all — confirmed by design) and the only "AI" code in the repo is `services/ai/` (`CloudProvider.js`, `LocalProvider.js`, `HomeProvider.js`, `AIStatusService.js`), all v0.9.1 placeholders that return hardcoded strings, never wired to a real model. The only roadmap line item for this is v0.19.3 "Local AI Integration (Samsung Galaxy S22)" — deep in Phase 10, Android Robot Application.
+
+**Decision made:** pull this forward as a new milestone, **v0.14.4 "AI Reasoning Layer"**, rather than waiting for v0.19.3. Scope it on the existing `CloudProvider`/`LocalProvider` abstraction (currently placeholder-only) instead of inventing a new pattern, and follow the same sequence used for every milestone so far: real provider service → honest diagnostics panel → validate → only then wire into `NaturalConversationEngine`/`ChatPanel`, using the same regression-safe bridge pattern as v0.14.3 (`ChatConversationBridge`).
+
+**Flagged before starting:** Christian confirmed the provider will be Claude for now. Important constraint raised and not yet resolved: this is a client-side Vite/React app with no backend — an API key placed directly in the bundle is visible to anyone via dev tools. This needs a decision (small backend/proxy to hold the key server-side, vs. a different approach) before any real API-calling code gets written. **Session paused here at Christian's request ("HOLD THOUGHT") — v0.14.4 has not been scoped or built yet.** Next session should pick this up by resolving the key-handling question first.

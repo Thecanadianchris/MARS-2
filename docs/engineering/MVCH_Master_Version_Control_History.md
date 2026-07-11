@@ -84,8 +84,9 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 | **v0.14** | ✅ Complete | 6 July 2026 | Voice Intelligence Foundation. |
 | **v0.14.1** | ✅ Complete | 6 July 2026 | Wake Word & Command Routing. |
 | **v0.14.1.1** | ✅ Complete | 6 July 2026 | Voice Response Layer. |
-| **v0.14.2** | 🚧 In Progress | 9 July 2026 | Natural Conversation Engine. Conversation sessions, context, history, reference resolution, planner, shared chat/voice routing and spoken responses. Current validated baseline: 28 test files, 95 tests, Build PASS, Release Check PASS, UI PASS. |
-| **v0.14.3** | ⏳ Planned | — | Voice Diagnostics & Audio Pipeline. Speech output, audio status, microphone readiness, STT/TTS preparation, voice diagnostics. |
+| **v0.14.2** | 🚧 In Progress | 9 July 2026 | Natural Conversation Engine. Conversation sessions, context, history, reference resolution, planner, diagnostics panel. Chat routing now partially shared with the engine (see v0.14.3) for cancel/confirm/clarify/vision cases; memory routing remains local-only by design, so full "shared chat/voice routing" is not yet claimed. Diagnostics-panel baseline: 29 test files, 99 tests, Build PASS, Release Check PASS, UI PASS. |
+| **v0.14.3** | ✅ Complete | 11 July 2026 | Voice Diagnostics & Audio Pipeline. `SpeechCapabilityService` (real Speech-to-Text/Text-to-Speech browser support, surfaced on VoicePanel and VoiceService/VoiceDiagnosticsService without disturbing the existing simulated-layer flags), and `ChatConversationBridge` — a regression-safe layer wiring `NaturalConversationEngine` into live ChatPanel so it now handles cancel, confirm/continue, clarify, and vision-routing turns, while real memory commands remain fully protected and untouched. 31 test files, 109 tests, Build PASS, Release Check PASS, UI PASS (verified live: memory preserved, new conversational responses confirmed, zero console errors). |
+| **v0.14.4** | ✅ Complete | 11 July 2026 | AI Reasoning Layer. Pulled forward from v0.19.3. Three-tier escalation chain, real: `LocalProvider` (S22, honest stub until v0.19.x) → `HomeProvider` (real Ollama client for the Snapdragon X base station, live probe-based availability) → `CloudProvider` (real Claude API client). `AIReasoningService` router returns an honest escalation trail on every call. Key handling resolved: runtime entry via the rebuilt MARS Intelligence panel, localStorage only, direct browser call with Anthropic's CORS opt-in header — never in repo or bundle. Chat wired via `ChatReasoningBridge`: only generic-fallback turns escalate; memory commands and canned replies structurally protected (same guarantee as v0.14.3). 33 test files, 126 tests, Build PASS, Release Check PASS, UI PASS (honest-failure path verified live; first real end-to-end answer pending Ollama install / key entry). | |
 
 ---
 
@@ -141,7 +142,7 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 | **v0.19** | Android Robot Application |
 | **v0.19.1** | Onboard Camera Integration |
 | **v0.19.2** | Voice & Robot Integration |
-| **v0.19.3** | Local AI Integration (Samsung Galaxy S22) |
+| **v0.19.3** | Local AI Integration (Samsung Galaxy S22) — reasoning chain already built in v0.14.4; this slot now means replacing the LocalProvider stub with a real on-device model |
 | **v0.19.4** | Android Diagnostics & Deployment |
 
 ---
@@ -172,9 +173,10 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 - Wake Word & Routing
 - Voice Response Layer
 - Natural Conversation Foundation (current)
+- Voice Audio Pipeline & Chat/Voice Bridge
+- AI Reasoning Layer (Local → Home → Cloud escalation)
 
 ### Planned
-- Voice Audio Pipeline
 - Memory Intelligence
 - Face Recognition
 - Protected User Alerting

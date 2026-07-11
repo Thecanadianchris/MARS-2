@@ -6,16 +6,23 @@
  * LocalProvider
  *
  * Purpose:
- * Represents AI processing available directly on the local device.
+ * Tier 1 of the MARS AI escalation chain: on-device AI on the
+ * robot itself (Samsung Galaxy S22).
  *
  * Current Scope:
- * Placeholder for Samsung Galaxy S22 / browser-side local AI.
+ * Honest stub. The on-device LLM arrives with the Android robot
+ * application phase (v0.19.x). Until then this tier truthfully
+ * reports itself unavailable for reasoning, so the escalation
+ * chain (Local → Home → Cloud) starts at the Home tier.
+ *
+ * The legacy capability-routing interface (canHandle/process,
+ * used by LocalAIDecisionService since v0.9.1) is preserved
+ * unchanged.
  *
  * Version:
- * v0.9.1
- *
+ * v0.14.4 (reasoning tier added; legacy interface from v0.9.1)
  * Date Code:
- * 270626
+ * 110726
  * ==========================================================
  */
 
@@ -24,6 +31,32 @@ class LocalProvider {
         this.name = "LOCAL_DEVICE";
         this.available = true;
     }
+
+    // ---- v0.14.4 reasoning tier (honest stub) ----
+
+    reasoningAvailable() {
+        return false;
+    }
+
+    getReasoningStatus() {
+        return {
+            tier: this.name,
+            label: "Local Device (S22)",
+            available: false,
+            detail: "On-device LLM is planned for the Android robot application (v0.19.x). Honest stub until then — escalation starts at the Home tier."
+        };
+    }
+
+    async reason() {
+        return {
+            provider: this.name,
+            status: "unavailable",
+            response: null,
+            detail: "No on-device model yet (arrives with the Android build, v0.19.x)."
+        };
+    }
+
+    // ---- legacy v0.9.1 capability routing (unchanged) ----
 
     canHandle(request) {
         if (!request) {
