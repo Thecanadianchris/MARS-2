@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import ModelSelector from '@/components/mars/ModelSelector'
 import ChatPanel from '@/components/mars/ChatPanel'
 import DashboardPanel from '@/components/mars/DashboardPanel'
-import MemoryPanel from '@/components/mars/MemoryPanel'
+import NotesPanel from '@/components/mars/NotesPanel'
 import VisionPanel from '@/components/mars/VisionPanel'
 import AIStatusPanel from '@/components/system/AIStatusPanel'
 import VisionStatusPanel from '@/components/system/VisionStatusPanel'
@@ -89,8 +89,8 @@ export default function Control() {
           </div>
         )}
 
-        {tab === 'memory' && (
-          <MemoryPanel
+        {tab === 'notes' && (
+          <NotesPanel
             key={memoryVersion}
             memory={memory}
             onClear={handleClearMemory}
@@ -224,15 +224,15 @@ export default function Control() {
           </button>
 
           <button
-            onClick={() => setTab('memory')}
+            onClick={() => setTab('notes')}
             className={`flex-1 flex flex-col items-center gap-1 py-3 ${
-              tab === 'memory'
+              tab === 'notes'
                 ? 'text-cyan-400'
                 : 'text-white/30 hover:text-white/50'
             }`}
           >
             <Brain size={17} />
-            <span className="text-[9px] font-mono tracking-wider">MEM</span>
+            <span className="text-[9px] font-mono tracking-wider">NOTES</span>
           </button>
         </div>
       </nav>
