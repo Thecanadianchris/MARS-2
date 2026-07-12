@@ -50,7 +50,7 @@ const DEFAULTS = Object.freeze({
   cloudApiKeys: {}, // one key per provider id
   cloudModels: {}, // per-provider model override; falls back to defaultModel
   customBaseUrl: '', // used only by 'other' (OpenAI-compatible)
-  ollamaBaseUrl: 'http://localhost:11434',
+  ollamaBaseUrl: '/ollama', // same-origin Vite proxy to localhost:11434 (see vite.config.js) — avoids browser CORS
   ollamaModel: null, // null = use first installed model reported by Ollama
   allowCloud: true,
 })
@@ -86,6 +86,12 @@ class AIProviderConfig {
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY)
         config = raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS }
+
+        // Migration: earlier v0.14.4 builds stored the direct Ollama URL,
+        // which browsers CORS-block. Move those to the same-origin proxy.
+        if (config.ollamaBaseUrl === 'http://localhost:11434') {
+          config.ollamaBaseUrl = DEFAULTS.ollamaBaseUrl
+        }
       } catch {
         config = { ...DEFAULTS }
       }

@@ -25,8 +25,10 @@ import HomeProvider from '../services/ai/HomeProvider'
 import CloudProvider from '../services/ai/CloudProvider'
 import AIReasoningService, { MARS_REASONING_SYSTEM_PROMPT } from '../services/ai/AIReasoningService'
 
-const OLLAMA_TAGS_URL = 'http://localhost:11434/api/tags'
-const OLLAMA_GENERATE_URL = 'http://localhost:11434/api/generate'
+// v0.14.4: Ollama is reached through the same-origin Vite proxy (/ollama →
+// localhost:11434, see vite.config.js) so the browser never hits CORS.
+const OLLAMA_TAGS_URL = '/ollama/api/tags'
+const OLLAMA_GENERATE_URL = '/ollama/api/generate'
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 
 function jsonResponse(body, status = 200) {

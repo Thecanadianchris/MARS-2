@@ -18,7 +18,7 @@ Unlike prior MEM documents, this one is based on a direct code review of the liv
 |---|---|
 | Last fully complete milestone | v0.14.4 — AI Reasoning Layer (Local → Home → Cloud escalation chain, real Ollama + Claude clients, runtime key entry) |
 | In-progress milestone | v0.14.2 — Natural Conversation Engine (diagnostics panel built; chat now shares routing with the engine for cancel/confirm/clarify/vision, memory routing intentionally still local-only, so not marked fully complete) |
-| Test baseline | 33 test files, 126 tests — Build PASS, Release Check PASS, UI PASS |
+| Test baseline | 33 test files, 130 tests — Build PASS, Release Check PASS, UI PASS (end-to-end verified live: Home + Cloud tiers both answering) |
 | Next milestone | v0.15 — Memory Intelligence Foundation |
 
 ## 2. Verified Source of Truth
@@ -87,7 +87,7 @@ See `MVCH_Master_Version_Control_History.md` (same folder) for the full versione
 
 ## 6. Open Items for Next Engineering Session
 
-- **v0.14.4 first end-to-end run — confirm and note.** The AI Reasoning Layer is built, tested (33/126) and UI-verified on the honest-failure path, but no live model answer has been observed yet: Ollama was not installed at verification time and no Claude key had been entered. Next session: install Ollama on the base station (`ollama pull qwen3.5:4b` or similar), have Christian paste the Claude key into the MARS Intelligence panel, and confirm a real Home-tier answer plus a real Cloud escalation.
+- **v0.14.4 end-to-end — DONE (12 July 2026).** Ollama ARM64 + `qwen3.5:4b` installed on the base station; Claude key entered at runtime. Both live paths confirmed: Home tier answering in panel and chat (`via HOME_AI_SERVER`), and Cloud escalation to Claude when Home was down (first real AI response in MARS history). Full debugging record (browser 503 → same-origin `/ollama` Vite proxy fix, thinking-model `think:false` fix, 60s timeout) is in the v0.14.4 manifest §7.
 - Decide whether `NaturalConversationEngine` should start dispatching through `CapabilityRouter.js` (confirmed built, version-controlled, still fully unwired) as part of v0.15.
 - Decide whether v0.15 Memory Intelligence should absorb the existing `components/mars/memory.js` / Notes-tab store, or build as a genuinely separate system alongside it — `ChatConversationBridge` currently keeps the engine's memory branch as a placeholder specifically to avoid conflicting with the real store, so this decision shapes how that bridge evolves.
 - Scope v0.15 Memory Intelligence Foundation (after v0.14.4 is resolved).

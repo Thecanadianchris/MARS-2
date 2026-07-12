@@ -28,7 +28,7 @@ Three tiers, tried in order by `AIReasoningService`, every call returning an hon
 | Tier | Provider | v0.14.4 state |
 |---|---|---|
 | 1 | `LocalProvider` — on-device LLM (S22) | **Honest stub.** Truthfully unavailable until the Android build (v0.19.x); the chain starts at Home. |
-| 2 | `HomeProvider` — Ollama on the base station (Snapdragon X) | **Real client.** Probes `/api/tags` (1.5s timeout, 5s cache), generates via `/api/generate` (30s timeout). Availability comes only from a live probe. Default endpoint `http://localhost:11434`; model = configured or first installed. Recommended runtime: Ollama native ARM64, ~4B Q4 model (e.g. `qwen3.5:4b`). |
+| 2 | `HomeProvider` — Ollama on the base station (Snapdragon X) | **Real client, verified live.** Probes `/api/tags` (1.5s timeout, 5s cache), generates via `/api/generate` (60s timeout, `think:false` with automatic retry-without-flag on HTTP 400 for non-thinking models). Availability comes only from a live probe. Default endpoint is `/ollama` — a same-origin Vite dev-server proxy to `localhost:11434` (see vite.config.js) that strips the browser Origin header, sidestepping browser CORS entirely (no `OLLAMA_ORIGINS` env var needed). Model = configured or first installed. Runtime in use: Ollama native ARM64, `qwen3.5:4b`. |
 | 3 | `CloudProvider` — selectable cloud AI | **Real multi-vendor client.** Provider dropdown in the panel: Claude (Anthropic, default), ChatGPT (OpenAI), Gemini (Google), or Other (any OpenAI-compatible endpoint, manual URL + model). One key stored per provider, so switching never loses a key. Direct browser calls (Anthropic via CORS opt-in header; Gemini supports browser keys; OpenAI may block browser CORS — error says so honestly). Max 512 tokens, editable model field. Honest 401/403/no-key/allowCloud-off reporting; never touches the network without a configured key (regression-guard tested). |
 
 Shared system prompt (`MARS_REASONING_SYSTEM_PROMPT`) reasserts the non-medical safety boundary at the model level, consistent with the `medicalDiagnosis: false` flag on every engine response.
@@ -51,12 +51,22 @@ The legacy v0.9.1 `canHandle`/`process` interface on all three providers, and `L
 - `npm run build` and `npm run release-check`: PASS (known recurring Vite >500kB chunk warning, unchanged).
 - Manual UI verification (Claude, live dev server via browser automation): MARS Intelligence panel shows honest tier status (Local stub message, "Ollama not reachable", "No Claude API key configured"); TEST AI ROUTE with no tiers up returns "Answered by: None" with the full three-tier trail; `remember my favourite colour is red` → real memory reply; `what is my favourite colour` → correct recall; `what is the capital of France` → graceful generic fallback, chat unbroken; zero console errors from the new layer (only pre-existing benign `no-speech` from VoiceInput).
 
-## 7. Honest limitations / not yet verified
+## 7. End-to-end verification — completed (12 July 2026)
 
-- No live end-to-end answer has been observed yet: Ollama was not installed on the base station at verification time, and no API key had been entered. The honest-failure path is what was verified live. First real end-to-end run (Home tier answering, then Cloud escalation) should be confirmed and noted in the next session.
+All three live paths confirmed on the real stack (Ollama ARM64 + `qwen3.5:4b` on the Snapdragon X, Claude key entered at runtime):
+
+- **Cloud escalation, live:** with the Home tier failing, TEST AI ROUTE was answered by `Cloud AI · claude-haiku-4-5-20251001` — the first real AI response in MARS history — with the honest trail Local: unavailable → Home: error → Cloud: success.
+- **Home tier, live:** after fixes, TEST AI ROUTE answered by `Home AI Server · qwen3.5:4b`; trail Local: unavailable → Home: success, Cloud untouched. Local-first confirmed working.
+- **Chat, live:** "what is the capital of France" returned a real Home-tier answer tagged `via HOME_AI_SERVER`; memory questions still answered locally (`via auto`), never escalated. Zero console errors.
+
+**Debugging record (for future reference):** browser calls to Ollama initially failed with HTTP 503 on `/api/generate` while CLI/PowerShell calls succeeded; additionally `qwen3.5:4b` is a thinking model whose chain-of-thought blew the original 30s timeout on CPU. Fixes: (a) `think:false` in the generate request with a 400-retry fallback, (b) timeout raised to 60s, (c) replaced the direct-URL call with the `/ollama` same-origin Vite proxy (Origin header stripped), which eliminated the browser/CORS failure class completely. `setx OLLAMA_ORIGINS` proved unnecessary and can be removed from the user environment (`REG delete "HKCU\Environment" /v OLLAMA_ORIGINS /f`).
+
+## 8. Remaining limitations
+
+- The `/ollama` proxy exists in the Vite dev server; a production build served statically will need an equivalent proxy or direct-URL config (relevant no earlier than the Android/base-station deployment phase).
 - Voice and visual-ID inputs reach the reasoning chain only insofar as they land in ChatPanel's text flow; direct wiring of the Voice tab's command router to the reasoning chain is future work.
 - `CapabilityRouter.js` remains unwired; decision still deferred to v0.15 scoping.
 
-## 8. Roadmap effect
+## 9. Roadmap effect
 
 v0.19.3 "Local AI Integration (Samsung Galaxy S22)" now means: implement the real on-device tier inside the already-built escalation chain (replace the LocalProvider stub), not build AI integration from scratch.
