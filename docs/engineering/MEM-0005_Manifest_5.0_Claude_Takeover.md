@@ -3,7 +3,7 @@
 Document ID: MEM-0005
 Status: Active — clean-start reference for engineering continuity
 Date: 9 July 2026
-Last Updated: 11 July 2026 (v0.14.4 baseline)
+Last Updated: 12 July 2026 (v0.15 Memory Intelligence Foundation + v0.15.1 Person-Scoped Memory complete, committed `939ca97`; see SESSION_HANDOFF_2026-07-12.md for the short current-state summary)
 Purpose: Marks the point at which engineering continuity for the MARS Software Project transferred from ChatGPT to Claude. This document combines the Manifest and Handover formats into a single, code-verified clean-start reference. Prior ChatGPT-era manifests and handover volumes have been archived (see Archive Note below) but remain available for history; nothing in them is lost, this document simply supersedes them as the active reference going forward.
 
 Unlike prior MEM documents, this one is based on a direct code review of the live repository, not solely on prior handover documentation. Where the two disagreed, the code review takes precedence and is noted below.
@@ -12,20 +12,20 @@ Unlike prior MEM documents, this one is based on a direct code review of the liv
 
 ## 1. Current Validated Baseline
 
-*(Updated 11 July 2026 — see `docs/engineering/manifest-history/Engineering_Manifest_v0.14.4_AI_Reasoning_Layer.md` for the full record behind this update.)*
+*(Updated 12 July 2026 — see `docs/engineering/manifest-history/Engineering_Manifest_v0.15_Memory_Intelligence_Foundation.md` and `..._v0.15.1_Person_Scoped_Memory.md` for the full record behind this update.)*
 
 | Item | Status |
 |---|---|
-| Last fully complete milestone | v0.14.4 — AI Reasoning Layer (Local → Home → Cloud escalation chain, real Ollama + Claude clients, runtime key entry) |
-| In-progress milestone | v0.14.2 — Natural Conversation Engine (diagnostics panel built; chat now shares routing with the engine for cancel/confirm/clarify/vision, memory routing intentionally still local-only, so not marked fully complete) |
-| Test baseline | 33 test files, 130 tests — Build PASS, Release Check PASS, UI PASS (end-to-end verified live: Home + Cloud tiers both answering) |
-| Next milestone | v0.15 — Memory Intelligence Foundation |
+| Last fully complete milestone | v0.15.1 — Person-Scoped Memory (Multi-User). Memory keyed by unbounded `personId` (owner default + explicit person tags), face-recognition-ready `setActivePerson` hook. Builds on v0.15 Memory Intelligence Foundation (real store, Notes absorbed via regression-safe shim, honest read-wiring, MEM-I panel). |
+| In-progress milestone | v0.14.2 — Natural Conversation Engine (diagnostics panel built; chat shares routing with the engine for cancel/confirm/clarify/vision; engine-driven memory writes still deferred to v0.15.2, so not marked fully complete) |
+| Test baseline | 35 test files, 155 tests — Build PASS, Release Check PASS, UI PASS (memory round-trip + person-scoping verified live) |
+| Next milestone | v0.15.2 — Short-Term Memory Engine (engine-driven writes via CapabilityRouter), then v0.16 Face Recognition (wires `setActivePerson`) |
 
 ## 2. Verified Source of Truth
 
 - **Live codebase path**: `02 - Software/Mars 2/mars-standalone/` — this is the active, current React/Vite application. It is **not** the `archive/` folder, which holds an older pre-refactor Base44-based build kept only for reference.
-- **Git branch**: `feature/v0.13.0-identity-foundation` is the real active development branch, despite its name only referencing v0.13.0, and remains where all new work lands. All work through v0.14.3 (SpeechCapabilityService + ChatConversationBridge, confirmed committed and pushed 11 July 2026) is safely on this branch.
-- **`main` branch**: merged from `feature/v0.13.0-identity-foundation` (fast-forward, no conflicts) earlier this week — no longer stale. New work still lands on the feature branch first, per the release workflow in Section 4.
+- **Git branch**: `feature/v0.13.0-identity-foundation` is the real active development branch, despite its name only referencing v0.13.0, and remains where all new work lands. All work through v0.14.4 plus the 12 July repo-hygiene commit (`738bf65` — removed shadowed duplicates `services/voice.js` and `services/capabilityState/`, renamed the `index (1).js` barrel) is confirmed pushed.
+- **`main` branch**: periodically fast-forwarded from the feature branch. At the 12 July GitHub check it was 7 commits behind again; merge commands were handed to Christian — confirm completed at next session start. New work still lands on the feature branch first, per the release workflow in Section 4.
 - **Repository**: `https://github.com/Thecanadianchris/MARS-2`
 
 ## 3. Architecture (Code-Verified)
@@ -44,11 +44,12 @@ Unlike prior MEM documents, this one is based on a direct code review of the liv
 | Voice | VoicePanel | `services/voice/` (VoiceService, VoiceCommandRouter, VoiceCommandRegistry, VoiceIntentParser, WakeWordService, VoiceResponseService, VoiceDiagnosticsService, `SpeechCapabilityService` — new in v0.14.3, real browser STT/TTS support detection, surfaced as `browserSpeechCapability` alongside the existing simulated-layer flags) |
 | Conversation | ConversationPanel | `services/conversation/` (see below) — new in v0.14.2 Step 2, diagnostics-panel pattern, tab key `'conversation'` |
 | Diagnostics | DiagnosticsPanel | `services/diagnostics/` (DiagnosticsManager, DiagnosticsStore, DiagnosticsTypes) + `services/pipelineHealth/` (PipelineHealthService) + `services/livePipeline/` (LivePipelineStore) |
-| Notes | NotesPanel | `components/mars/memory.js` — simple localStorage chat-history/fact store. Renamed from "Memory"/`MemoryPanel` to resolve the naming collision with the v0.15 Memory Intelligence engine (tab key now `'notes'`). `ChatPanel`'s "remember X is Y" conversational commands deliberately still use this real store — untouched by the rename. |
+| Notes | NotesPanel | Renders the owner/default person's memory. As of v0.15, `components/mars/memory.js` is a thin **shim** delegating to `services/memory/MemoryIntelligenceService` (no logic of its own). `ChatPanel`'s "remember X is Y" commands write through it, so Notes shows the owner scope unchanged. Tab key `'notes'`. |
+| Memory Intelligence | MemoryIntelligencePanel | `services/memory/` (`MemoryIntelligenceService`, `MemoryCommandParser`) — new in v0.15/v0.15.1. Person-scoped persistent store keyed by unbounded `personId`; MEM-I tab shows per-person facts, migration/backing status. Tab key `'memory-i'`. |
 
 **v0.14.2 in progress, v0.14.3 complete** — `services/conversation/`: `NaturalConversationEngine`, `ConversationSessionService`, `ConversationHistoryService`, `ConversationContextService`, `ReferenceResolver`, `ConversationPlanner`, `ConversationDiagnosticsService`, plus (new) `ChatConversationBridge`. Code reviewed directly: `NaturalConversationEngine` is a deterministic orchestrator (no live LLM call yet) that composes session, history, context, reference resolution and planning into a turn response, consistent with the project's "non-medical assistive platform" framing (explicit `medicalDiagnosis: false`, `persistentMemory: false`, `liveAudio: false` flags on every response). As of v0.14.3, `ChatPanel.jsx` calls `NaturalConversationEngine.processTurn()` on every turn; `ChatConversationBridge.buildChatReply()` decides whether to use the engine's response (only for `cancel_action`, `continue_previous_action`, `ask_clarifying_question`, `route_to_vision` plan actions, and only when the local reply logic had nothing specific to say) or the existing local reply (always used for real memory commands and canned replies — structurally protected, not just by convention).
 
-**CapabilityRouter status — resolved, still unwired.** `services/conversation/CapabilityRouter.js` exists in code (now version-controlled, previously untracked scaffolding) but is confirmed by repeated grep across the whole session to have zero imports anywhere in the app. `NaturalConversationEngine.processTurn()` builds its response via a local `switch` on `plan.action`, never calling `CapabilityRouter.route()`. Decision on whether to start dispatching through it is deferred to v0.15 scoping.
+**CapabilityRouter status — still unwired; memory branch now reads real store.** `services/conversation/CapabilityRouter.js` still has zero imports anywhere in the app. As of v0.15 its `MEMORY` case (and the engine's `ROUTE_TO_MEMORY` response) return a real read from `MemoryIntelligenceService` instead of the old "begins in v0.15" placeholder, but nothing dispatches *through* the router yet, and engine-driven memory *writes* remain deferred to v0.15.2. The engine still builds its response via a local `switch` on `plan.action`.
 
 ### 2b. Real Per-Milestone Manifest Trail (Corrected)
 
@@ -65,6 +66,8 @@ A second, more complete and more current manifest/handover trail was found insid
 - `Engineering_Manifest_v0.14.2_Step_2_Conversation_Diagnostics_Panel.md`
 - `Engineering_Manifest_v0.14.3_Speech_Capability_and_Chat_Conversation_Bridge.md`
 - `Engineering_Manifest_v0.14.4_AI_Reasoning_Layer.md`
+- `Engineering_Manifest_v0.15_Memory_Intelligence_Foundation.md`
+- `Engineering_Manifest_v0.15.1_Person_Scoped_Memory.md`
 
 All files from this trail, including the 2 that were `.docx`, are now consolidated in `docs/engineering/manifest-history/` — the sandbox-blocked move noted in earlier versions of this document was completed via computer-use screen control. `manifest-history/` is the sole authoritative per-milestone record going forward; `mars-standalone/docs/` no longer holds any manifest content.
 
@@ -83,15 +86,18 @@ All files from this trail, including the 2 that were `.docx`, are now consolidat
 
 ## 5. Roadmap Forward
 
-See `MVCH_Master_Version_Control_History.md` (same folder) for the full versioned roadmap through v0.20.4 (MARS Mk1 Production Release). v0.14.4 AI Reasoning Layer is complete (pulled forward from v0.19.3; that slot now means replacing the LocalProvider stub with a real on-device model on the S22). Immediate next step: v0.15 Memory Intelligence Foundation.
+See `MVCH_Master_Version_Control_History.md` (same folder) for the full versioned roadmap through v0.20.4 (MARS Mk1 Production Release). v0.14.4 AI Reasoning Layer is complete (pulled forward from v0.19.3; that slot now means replacing the LocalProvider stub with a real on-device model on the S22). v0.15 Memory Intelligence Foundation and v0.15.1 Person-Scoped Memory are complete. Immediate next step: v0.15.2 Short-Term Memory Engine (engine-driven writes dispatched through `CapabilityRouter`), then v0.16 Face Recognition (which wires `MemoryIntelligenceService.setActivePerson` so "my …" attaches to the recognised person).
 
 ## 6. Open Items for Next Engineering Session
 
 - **v0.14.4 end-to-end — DONE (12 July 2026).** Ollama ARM64 + `qwen3.5:4b` installed on the base station; Claude key entered at runtime. Both live paths confirmed: Home tier answering in panel and chat (`via HOME_AI_SERVER`), and Cloud escalation to Claude when Home was down (first real AI response in MARS history). Full debugging record (browser 503 → same-origin `/ollama` Vite proxy fix, thinking-model `think:false` fix, 60s timeout) is in the v0.14.4 manifest §7.
-- Decide whether `NaturalConversationEngine` should start dispatching through `CapabilityRouter.js` (confirmed built, version-controlled, still fully unwired) as part of v0.15.
-- Decide whether v0.15 Memory Intelligence should absorb the existing `components/mars/memory.js` / Notes-tab store, or build as a genuinely separate system alongside it — `ChatConversationBridge` currently keeps the engine's memory branch as a placeholder specifically to avoid conflicting with the real store, so this decision shapes how that bridge evolves.
-- Scope v0.15 Memory Intelligence Foundation (after v0.14.4 is resolved).
-- All doc-housekeeping and branch-hygiene open items from earlier versions of this document are resolved (see Section 7) — `main` is merged, all manifest content is consolidated in `manifest-history/`, and the Notes rename is live.
+- **v0.15 + v0.15.1 — DONE (12 July 2026, commit `939ca97`).** Memory absorbed the Notes store via a regression-safe shim (decision: absorb, taken this session) and became person-scoped by unbounded `personId` (owner default + explicit person tags). Honest read-wiring replaced the old "begins in v0.15" placeholders. 35 files / 155 tests, Build + Release Check + UI all PASS.
+- `CapabilityRouter.js` is still unwired. Its memory branch now returns a real read, but engine-driven memory **writes** through it are the v0.15.2 job — that's the next dispatch decision.
+- **v0.15.2 Short-Term Memory Engine** — next milestone: wire `NaturalConversationEngine`/`CapabilityRouter` to write per-person session memory.
+- **v0.16 Face Recognition** — will call `MemoryIntelligenceService.setActivePerson(personId)` once an identity is confirmed, so untagged "my …" attaches to the recognised person. Hook already exists.
+- Confirm the `main` fast-forward merge completed (was 7 commits behind at the 12 July GitHub check).
+- Optional: write a root README for the GitHub repo (currently none).
+- All doc-housekeeping items from earlier versions of this document are resolved (see Section 7); a full repo structural review (12 July) additionally removed the shadowed duplicate modules and confirmed gitignore coverage, docs layout, and a clean src tree.
 
 ## 7. Archive Note
 

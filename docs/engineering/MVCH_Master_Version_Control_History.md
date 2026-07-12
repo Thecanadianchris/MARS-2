@@ -90,14 +90,15 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 
 ---
 
-# PHASE 6 — Memory Intelligence *(Planned)*
+# PHASE 6 — Memory Intelligence
 
-| Version | Description |
-|---|---|
-| **v0.15** | Memory Intelligence Foundation |
-| **v0.15.1** | Short-Term Memory Engine |
-| **v0.15.2** | Long-Term Memory Engine |
-| **v0.15.3** | Behaviour Learning & Personal Context |
+| Version | Status | Date | Description |
+|---|---|---|---|
+| **v0.15** | ✅ Complete | 12 July 2026 | Memory Intelligence Foundation. Real `MemoryIntelligenceService` store with a richer schema, loss-free migration, absorbed the Notes/`memory.js` store via a regression-safe shim (ChatPanel/Notes untouched), honest conversation-layer read-wiring, and the MEM-I diagnostics panel. |
+| **v0.15.1** | ✅ Complete | 12 July 2026 | Person-Scoped Memory (Multi-User). Memory keyed by an unbounded `personId` (owner default + explicit "remember Finley's X" person tags), a face-recognition-ready `setActivePerson` hook, chained v2→v3 migration, and a per-person MEM-I view. Pulled in ahead of the originally-planned Short-Term engine because the multi-user monitoring requirement surfaced. Committed with v0.15 in one commit. 35 test files, 155 tests, Build PASS, Release Check PASS, UI PASS. |
+| **v0.15.2** | 🔜 Planned | — | Short-Term Memory Engine (session working memory; engine-driven writes dispatched through CapabilityRouter). |
+| **v0.15.3** | 🔜 Planned | — | Long-Term Memory Engine (consolidation, categories in use, per-person forgetting/decay). |
+| **v0.15.4** | 🔜 Planned | — | Behaviour Learning & Personal Context (inferred facts + per-person context injected into the v0.14.4 reasoning chain). |
 
 ---
 
@@ -175,9 +176,10 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 - Natural Conversation Foundation (current)
 - Voice Audio Pipeline & Chat/Voice Bridge
 - AI Reasoning Layer (Local → Home → Cloud escalation)
+- Memory Intelligence Foundation & Person-Scoped Memory (Multi-User)
 
 ### Planned
-- Memory Intelligence
+- Memory Intelligence: Short/Long-Term Engines & Personal Context (v0.15.2–v0.15.4)
 - Face Recognition
 - Protected User Alerting
 - Robot Control
