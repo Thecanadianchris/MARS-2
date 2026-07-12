@@ -48,7 +48,7 @@ class ConversationPlanner {
     }
 
     if (normalised.includes('remember') || normalised.includes('memory')) {
-      return this.createPlan(CONVERSATION_PLAN_ACTIONS.ROUTE_TO_MEMORY, 'memory', 0.62, 'Memory is planned for v0.15; answer with current limitation.', context)
+      return this.createPlan(CONVERSATION_PLAN_ACTIONS.ROUTE_TO_MEMORY, 'memory', 0.62, 'Route to the Memory Intelligence store (v0.15, read); engine-driven writes arrive in v0.15.1.', context)
     }
 
     if (intentResult?.intent && intentResult.intent !== 'UNKNOWN_VOICE_INTENT') {

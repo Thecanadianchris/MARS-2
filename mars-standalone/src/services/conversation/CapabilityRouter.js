@@ -20,6 +20,7 @@
  */
 
 import VoiceCommandRouter from '@/services/voice/VoiceCommandRouter'
+import MemoryIntelligenceService from '@/services/memory/MemoryIntelligenceService'
 
 export const CAPABILITY_TARGETS = Object.freeze({
   CONVERSATION: 'conversation',
@@ -69,12 +70,18 @@ class CapabilityRouter {
         break
 
       case CAPABILITY_TARGETS.MEMORY:
-      case 'memory':
-        result = this.placeholder(
-          'memory',
-          'Memory capability begins in v0.15.'
-        )
+      case 'memory': {
+        const memoryStatus = MemoryIntelligenceService.getStatus()
+        result = {
+          status: 'ready',
+          target: 'memory',
+          action: 'memory-read',
+          summary: `Memory Intelligence store active (v0.15) with ${memoryStatus.entryCount} stored ${memoryStatus.entryCount === 1 ? 'fact' : 'facts'}. Engine-driven writes arrive in v0.15.1.`,
+          entryCount: memoryStatus.entryCount,
+          persistentMemory: true,
+        }
         break
+      }
 
       case CAPABILITY_TARGETS.IDENTITY:
       case 'identity':

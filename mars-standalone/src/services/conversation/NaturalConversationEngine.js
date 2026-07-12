@@ -23,11 +23,14 @@ import ConversationContextService from './ConversationContextService'
 import ReferenceResolver from './ReferenceResolver'
 import ConversationPlanner, { CONVERSATION_PLAN_ACTIONS } from './ConversationPlanner'
 import ConversationDiagnosticsService from './ConversationDiagnosticsService'
+import MemoryIntelligenceService from '@/services/memory/MemoryIntelligenceService'
 
 function createConversationResponse({ message, plan, reference, context, timestamp = Date.now() }) {
   let title = 'Conversation Ready'
   let summary = 'MARS has processed the conversation turn.'
   let lines = []
+  let memoryStoreActive = false
+  let storedFactCount = null
 
   switch (plan.action) {
     case CONVERSATION_PLAN_ACTIONS.ROUTE_TO_VISION:
@@ -35,11 +38,20 @@ function createConversationResponse({ message, plan, reference, context, timesta
       summary = 'I can use the current conversation context to route this towards vision.'
       lines = ['Vision routing is planned from this conversation turn.', 'Live camera action remains controlled by the existing vision capability.']
       break
-    case CONVERSATION_PLAN_ACTIONS.ROUTE_TO_MEMORY:
-      title = 'Memory Not Yet Active'
-      summary = 'Memory Intelligence begins at v0.15, so I can only use temporary conversation context right now.'
-      lines = ['Short-term conversation context is active.', 'Persistent memory remains deferred.']
+    case CONVERSATION_PLAN_ACTIONS.ROUTE_TO_MEMORY: {
+      const memoryStatus = MemoryIntelligenceService.getStatus()
+      memoryStoreActive = true
+      storedFactCount = memoryStatus.entryCount
+      title = 'Memory Intelligence Online'
+      summary = storedFactCount > 0
+        ? `Persistent memory is active. I currently have ${storedFactCount} stored ${storedFactCount === 1 ? 'fact' : 'facts'}.`
+        : 'Persistent memory is active. I do not have anything stored yet.'
+      lines = [
+        'Short-term conversation context is active.',
+        'Persistent memory is read here; engine-driven writes arrive in v0.15.1.',
+      ]
       break
+    }
     case CONVERSATION_PLAN_ACTIONS.CANCEL_ACTION:
       title = 'Conversation Action Cancelled'
       summary = 'I have cancelled the current conversational action.'
@@ -48,7 +60,7 @@ function createConversationResponse({ message, plan, reference, context, timesta
     case CONVERSATION_PLAN_ACTIONS.CONTINUE_PREVIOUS_ACTION:
       title = 'Continuing Previous Context'
       summary = reference?.resolvedTarget ? `I understood this as referring to ${reference.resolvedTarget}.` : 'I understood this as a follow-up to the previous action.'
-      lines = ['Follow-up handling is active.', 'Persistent memory is not used in v0.14.2.']
+      lines = ['Follow-up handling is active.', 'The persistent memory store is active from v0.15.']
       break
     case CONVERSATION_PLAN_ACTIONS.ASK_CLARIFYING_QUESTION:
       title = 'Clarification Needed'
@@ -78,6 +90,8 @@ function createConversationResponse({ message, plan, reference, context, timesta
     confidence: plan.confidence,
     naturalConversation: true,
     persistentMemory: false,
+    memoryStoreActive,
+    storedFactCount,
     liveAudio: false,
     medicalDiagnosis: false,
     timestamp,

@@ -6,6 +6,9 @@ import QuickCommands from '@/components/mars/QuickCommands'
 import VoiceInput from '@/components/mars/VoiceInput'
 import { createLocalMarsReply } from '@/components/mars/marsConfig'
 import { clearMemory, recall, recallAll, remember } from '@/components/mars/memory'
+import MemoryIntelligenceService from '@/services/memory/MemoryIntelligenceService'
+import { parsePersonMemoryWrite, parsePersonMemoryRecall } from '@/services/memory'
+import PersonRegistry from '@/services/identity/PersonRegistry'
 import { NaturalConversationEngine, buildChatReply, buildReasonedChatReply } from '@/services/conversation'
 
 const STORAGE_KEY = 'mars_messages_v1'
@@ -87,6 +90,40 @@ function createMemoryAwareReply(content) {
     lower.includes('list memory')
   ) {
     return formatMemoryList(recallAll())
+  }
+
+  // v0.15.1: explicit person-tagged memory, e.g. "remember Finley's
+  // medication is 8pm". Checked BEFORE the owner-scoped patterns so the
+  // untagged "my …" commands below are completely unaffected.
+  const personWrite = parsePersonMemoryWrite(content)
+
+  if (personWrite) {
+    const profile = PersonRegistry.findProfileByDisplayName(personWrite.personName)
+
+    if (!profile) {
+      return `I do not recognise ${personWrite.personName} yet, Christian. Confirm their profile first and I will remember things for them.`
+    }
+
+    MemoryIntelligenceService.remember(personWrite.key, personWrite.value, { personId: profile.id })
+    return `Understood, Christian. I will remember that ${profile.displayName}'s ${personWrite.key} is ${personWrite.value}.`
+  }
+
+  const personRecall = parsePersonMemoryRecall(content)
+
+  if (personRecall) {
+    const profile = PersonRegistry.findProfileByDisplayName(personRecall.personName)
+
+    if (!profile) {
+      return `I do not recognise ${personRecall.personName} yet, Christian.`
+    }
+
+    const storedValue = MemoryIntelligenceService.recall(personRecall.key, { personId: profile.id })
+
+    if (storedValue) {
+      return `${profile.displayName}'s ${personRecall.key} is ${storedValue}, Christian.`
+    }
+
+    return `I do not have ${profile.displayName}'s ${personRecall.key} stored yet, Christian.`
   }
 
   const memoryToStore = extractMemory(content)

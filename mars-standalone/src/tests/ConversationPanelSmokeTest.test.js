@@ -51,11 +51,14 @@ describe('Conversation Panel Smoke Test', () => {
     expect(snapshot.history.historySize).toBeGreaterThan(0)
   })
 
-  test('memory-routed turn stays within the v0.15 safety boundary', () => {
+  test('memory-routed turn surfaces the live store but the engine still does not write memory', () => {
     const result = NaturalConversationEngine.processTurn('remember my name is Christian')
 
     expect(result.plan.capability).toBe('memory')
-    expect(result.response.title).toBe('Memory Not Yet Active')
+    // v0.15: memory now exists app-side, so the engine reports it honestly...
+    expect(result.response.title).toBe('Memory Intelligence Online')
+    expect(result.response.memoryStoreActive).toBe(true)
+    // ...but engine-driven writes are deferred to v0.15.1, so this stays false.
     expect(result.persistentMemory).toBe(false)
   })
 
