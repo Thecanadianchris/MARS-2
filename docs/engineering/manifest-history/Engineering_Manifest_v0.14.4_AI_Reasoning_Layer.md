@@ -63,7 +63,7 @@ All three live paths confirmed on the real stack (Ollama ARM64 + `qwen3.5:4b` on
 
 ## 8. Remaining limitations
 
-- The `/ollama` proxy exists in the Vite dev server; a production build served statically will need an equivalent proxy or direct-URL config (relevant no earlier than the Android/base-station deployment phase).
+- ~~The `/ollama` proxy exists in the Vite dev server only~~ — resolved post-release: the same proxy is now applied to `vite preview` as well, so the production build served locally behaves identically to dev. Only a genuinely external deployment (Android app / base-station server, v0.19.x) will need its own equivalent, which is that phase's concern. The `OLLAMA_ORIGINS` user env var has been removed.
 - Voice and visual-ID inputs reach the reasoning chain only insofar as they land in ChatPanel's text flow; direct wiring of the Voice tab's command router to the reasoning chain is future work.
 - `CapabilityRouter.js` remains unwired; decision still deferred to v0.15 scoping.
 
