@@ -20,13 +20,15 @@
  * ==========================================================
  */
 
-import { Brain, Database, RefreshCw, ShieldCheck, Trash2, User } from 'lucide-react'
+import { Brain, Clock, Database, RefreshCw, ShieldCheck, Trash2, User } from 'lucide-react'
 import useMemoryIntelligence from '@/hooks/useMemoryIntelligence'
 
 export default function MemoryIntelligencePanel() {
-  const { status, persons, refresh, clearAll } = useMemoryIntelligence()
+  const { status, persons, workingMemory, refresh, clearAll } = useMemoryIntelligence()
 
   const categoryEntries = Object.entries(status.categoryCounts || {})
+  const workingStatus = workingMemory?.status || {}
+  const workingItems = workingMemory?.items || []
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
@@ -102,6 +104,42 @@ export default function MemoryIntelligencePanel() {
           </div>
         </section>
       )}
+
+      <section className="rounded-2xl border border-violet-400/20 bg-violet-500/[0.06] p-4">
+        <div className="flex items-center justify-between gap-3 text-violet-200">
+          <div className="flex items-center gap-2">
+            <Clock size={16} />
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Working Memory (session)</h2>
+          </div>
+          <span className="rounded-full border border-violet-300/20 px-2 py-0.5 text-[10px] uppercase tracking-widest text-violet-200">
+            {workingStatus.personId || 'no active person'}
+          </span>
+        </div>
+
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+          v0.15.2 short-term set — seeded from the active person's long-term facts on session start; items can be promoted back to long-term. Clears with the conversation session.
+        </p>
+
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+          <Metric label="Seeded" value={workingStatus.seededCount ?? 0} />
+          <Metric label="Items" value={workingStatus.itemCount ?? 0} />
+          <Metric label="Promoted" value={workingStatus.promotedCount ?? 0} />
+        </div>
+
+        {workingItems.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {workingItems.map((item) => (
+              <span
+                key={item.key}
+                className="rounded-full border border-violet-300/20 bg-slate-950/50 px-3 py-1 text-[11px] text-slate-300"
+              >
+                {item.key}: <span className="text-white">{String(item.value)}</span>
+                <span className="ml-1 text-slate-500">({item.origin})</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center gap-2 text-cyan-300">

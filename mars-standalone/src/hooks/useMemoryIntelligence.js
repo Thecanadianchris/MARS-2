@@ -18,14 +18,16 @@
  */
 
 import { useCallback, useState } from 'react'
-import { MemoryIntelligenceService } from '@/services/memory'
+import { MemoryIntelligenceService, WorkingMemoryService } from '@/services/memory'
 
 export default function useMemoryIntelligence() {
   const [snapshot, setSnapshot] = useState(() => MemoryIntelligenceService.getSnapshot())
+  const [working, setWorking] = useState(() => WorkingMemoryService.getSnapshot())
 
   const refresh = useCallback(() => {
     const next = MemoryIntelligenceService.getSnapshot()
     setSnapshot(next)
+    setWorking(WorkingMemoryService.getSnapshot())
     return next
   }, [])
 
@@ -38,6 +40,7 @@ export default function useMemoryIntelligence() {
     snapshot,
     status: snapshot.status,
     persons: snapshot.persons,
+    workingMemory: working,
     refresh,
     clearAll,
   }

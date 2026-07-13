@@ -27,3 +27,5 @@ export {
   parsePersonMemoryWrite,
   parsePersonMemoryRecall,
 } from './MemoryCommandParser'
+
+export { default as WorkingMemoryService, ITEM_ORIGIN } from './WorkingMemoryService'

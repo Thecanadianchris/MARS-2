@@ -71,13 +71,33 @@ class CapabilityRouter {
 
       case CAPABILITY_TARGETS.MEMORY:
       case 'memory': {
+        // v0.15.2: real memory-WRITE dispatch (used by WorkingMemoryService
+        // promotion). Read remains the default for any other memory route.
+        if (plan?.memoryOp === 'write') {
+          const { key, value, personId, category, source } = plan.payload || {}
+          const entry = MemoryIntelligenceService.remember(key, value, { personId, category, source })
+
+          result = {
+            status: entry ? 'stored' : 'rejected',
+            target: 'memory',
+            action: 'memory-write',
+            summary: entry
+              ? `Stored "${entry.key}" for ${personId || 'the active person'}.`
+              : 'Nothing stored — an empty key was supplied.',
+            entry: entry || null,
+            persistentMemory: true,
+          }
+          break
+        }
+
         const memoryStatus = MemoryIntelligenceService.getStatus()
         result = {
           status: 'ready',
           target: 'memory',
           action: 'memory-read',
-          summary: `Memory Intelligence store active (v0.15) with ${memoryStatus.entryCount} stored ${memoryStatus.entryCount === 1 ? 'fact' : 'facts'}. Engine-driven writes arrive in v0.15.1.`,
+          summary: `Memory Intelligence store active with ${memoryStatus.entryCount} stored ${memoryStatus.entryCount === 1 ? 'fact' : 'facts'} across ${memoryStatus.personCount} ${memoryStatus.personCount === 1 ? 'person' : 'people'}.`,
           entryCount: memoryStatus.entryCount,
+          personCount: memoryStatus.personCount,
           persistentMemory: true,
         }
         break

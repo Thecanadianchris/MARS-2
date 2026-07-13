@@ -24,6 +24,7 @@ import ReferenceResolver from './ReferenceResolver'
 import ConversationPlanner, { CONVERSATION_PLAN_ACTIONS } from './ConversationPlanner'
 import ConversationDiagnosticsService from './ConversationDiagnosticsService'
 import MemoryIntelligenceService from '@/services/memory/MemoryIntelligenceService'
+import WorkingMemoryService from '@/services/memory/WorkingMemoryService'
 
 function createConversationResponse({ message, plan, reference, context, timestamp = Date.now() }) {
   let title = 'Conversation Ready'
@@ -108,6 +109,15 @@ class NaturalConversationEngine {
       activeCapability: options.routeResult?.target || null,
     })
 
+    // v0.15.2: seed short-term working memory from the active person's
+    // long-term facts when the active person changes (incl. first turn).
+    // Read-only — copies long-term facts into the session working set;
+    // it never writes to long-term, so chat replies are unaffected.
+    const activePersonId = MemoryIntelligenceService.getActivePersonId()
+    if (WorkingMemoryService.getStatus().personId !== activePersonId) {
+      WorkingMemoryService.seedForPerson(activePersonId)
+    }
+
     const initialHistoryRecord = ConversationHistoryService.addExchange({
       sessionId: session.id,
       userMessage: message,
@@ -182,6 +192,7 @@ class NaturalConversationEngine {
     ConversationHistoryService.clearHistory()
     ConversationContextService.clearContext()
     ConversationDiagnosticsService.clearSnapshot()
+    WorkingMemoryService.clear()
   }
 
   getStatus() {
@@ -194,6 +205,7 @@ class NaturalConversationEngine {
       history: ConversationHistoryService.getStatus(),
       context: ConversationContextService.getStatus(),
       diagnostics: ConversationDiagnosticsService.getStatus(),
+      workingMemory: WorkingMemoryService.getStatus(),
       persistentMemory: false,
       liveAudio: false,
       medicalDiagnosis: false,
