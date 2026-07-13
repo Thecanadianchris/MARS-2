@@ -23,6 +23,7 @@ import {
   WorkingMemoryService,
   LongTermMemoryEngine,
   PersonalContextService,
+  BehaviourLearningService,
 } from '@/services/memory'
 
 export default function useMemoryIntelligence() {
@@ -36,6 +37,7 @@ export default function useMemoryIntelligence() {
   const [personalContext, setPersonalContext] = useState(() =>
     PersonalContextService.getPreview(MemoryIntelligenceService.getActivePersonId())
   )
+  const [behaviourLearning, setBehaviourLearning] = useState(() => BehaviourLearningService.getSnapshot())
 
   const refresh = useCallback(() => {
     LongTermMemoryEngine.categoriseAll()
@@ -44,11 +46,22 @@ export default function useMemoryIntelligence() {
     setWorking(WorkingMemoryService.getSnapshot())
     setLongTerm(LongTermMemoryEngine.getStatus())
     setPersonalContext(PersonalContextService.getPreview(MemoryIntelligenceService.getActivePersonId()))
+    setBehaviourLearning(BehaviourLearningService.getSnapshot())
     return next
   }, [])
 
   const clearAll = useCallback(() => {
     MemoryIntelligenceService.clearAllPersons()
+    return refresh()
+  }, [refresh])
+
+  const confirmCandidate = useCallback((id) => {
+    BehaviourLearningService.confirmCandidate(id)
+    return refresh()
+  }, [refresh])
+
+  const rejectCandidate = useCallback((id) => {
+    BehaviourLearningService.rejectCandidate(id)
     return refresh()
   }, [refresh])
 
@@ -59,7 +72,10 @@ export default function useMemoryIntelligence() {
     workingMemory: working,
     longTerm,
     personalContext,
+    behaviourLearning,
     refresh,
     clearAll,
+    confirmCandidate,
+    rejectCandidate,
   }
 }

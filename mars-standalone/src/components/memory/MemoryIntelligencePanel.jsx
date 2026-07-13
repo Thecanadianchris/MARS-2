@@ -20,17 +20,18 @@
  * ==========================================================
  */
 
-import { Brain, Clock, Cpu, Database, Lock, RefreshCw, ShieldCheck, Trash2, User } from 'lucide-react'
+import { Brain, Check, Clock, Cpu, Database, Lock, RefreshCw, ShieldCheck, Sparkles, Trash2, User, X } from 'lucide-react'
 import useMemoryIntelligence from '@/hooks/useMemoryIntelligence'
 
 export default function MemoryIntelligencePanel() {
-  const { status, persons, workingMemory, longTerm, personalContext, refresh, clearAll } = useMemoryIntelligence()
+  const { status, persons, workingMemory, longTerm, personalContext, behaviourLearning, refresh, clearAll, confirmCandidate, rejectCandidate } = useMemoryIntelligence()
 
   const categoryEntries = Object.entries(status.categoryCounts || {})
   const workingStatus = workingMemory?.status || {}
   const workingItems = workingMemory?.items || []
   const lt = longTerm || {}
   const pc = personalContext || {}
+  const candidates = behaviourLearning?.candidates || []
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
@@ -184,6 +185,59 @@ export default function MemoryIntelligencePanel() {
             {pc.safetyCount ? <> {pc.safetyCount} safety fact{pc.safetyCount === 1 ? '' : 's'} stay device-locked.</> : null}
           </span>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.06] p-4">
+        <div className="flex items-center justify-between gap-3 text-amber-200">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} />
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Learned Candidates</h2>
+          </div>
+          <span className="rounded-full border border-amber-300/20 px-2 py-0.5 text-[10px] uppercase tracking-widest text-amber-200">
+            {candidates.length} pending
+          </span>
+        </div>
+
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+          v0.15.5 — facts MARS inferred (from conversation and behaviour), never stored until you confirm. Never safety-critical.
+        </p>
+
+        {candidates.length === 0 ? (
+          <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 text-[11px] text-slate-400">
+            No candidates yet. Say something like "I love gardening" on the Chat tab, or run a behaviour scenario a few times on the BEHAV tab.
+          </div>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {candidates.map((candidate) => (
+              <div key={candidate.id} className="rounded-xl border border-amber-400/20 bg-slate-950/60 p-3 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-amber-100">
+                    {candidate.personId} · {candidate.key}: <span className="text-white">{candidate.value}</span>
+                  </span>
+                  <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-slate-400">
+                    {candidate.sourceKind}
+                  </span>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => confirmCandidate(candidate.id)}
+                    className="flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/20"
+                  >
+                    <Check size={12} /> Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rejectCandidate(candidate.id)}
+                    className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-slate-300 hover:bg-white/[0.07]"
+                  >
+                    <X size={12} /> Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">

@@ -25,6 +25,7 @@ import ConversationPlanner, { CONVERSATION_PLAN_ACTIONS } from './ConversationPl
 import ConversationDiagnosticsService from './ConversationDiagnosticsService'
 import MemoryIntelligenceService from '@/services/memory/MemoryIntelligenceService'
 import WorkingMemoryService from '@/services/memory/WorkingMemoryService'
+import BehaviourLearningService from '@/services/memory/BehaviourLearningService'
 
 function createConversationResponse({ message, plan, reference, context, timestamp = Date.now() }) {
   let title = 'Conversation Ready'
@@ -117,6 +118,10 @@ class NaturalConversationEngine {
     if (WorkingMemoryService.getStatus().personId !== activePersonId) {
       WorkingMemoryService.seedForPerson(activePersonId)
     }
+
+    // v0.15.5: silently observe the turn for behaviour-learning candidates.
+    // Only proposes candidates (never stores facts, never alters the reply).
+    BehaviourLearningService.observe(message, { personId: activePersonId })
 
     const initialHistoryRecord = ConversationHistoryService.addExchange({
       sessionId: session.id,

@@ -74,8 +74,8 @@ class CapabilityRouter {
         // v0.15.2: real memory-WRITE dispatch (used by WorkingMemoryService
         // promotion). Read remains the default for any other memory route.
         if (plan?.memoryOp === 'write') {
-          const { key, value, personId, category, source } = plan.payload || {}
-          const entry = MemoryIntelligenceService.remember(key, value, { personId, category, source })
+          const { key, value, personId, category, source, confidence } = plan.payload || {}
+          const entry = MemoryIntelligenceService.remember(key, value, { personId, category, source, confidence })
 
           result = {
             status: entry ? 'stored' : 'rejected',

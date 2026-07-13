@@ -23,7 +23,7 @@
  * ==========================================================
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_CONCERN_LEVELS,
@@ -34,6 +34,7 @@ import {
   HEAD_DIRECTIONS,
   MOVEMENT_STATES
 } from '@/services/behaviour'
+import { BehaviourLearningService } from '@/services/memory'
 import { createSimulationState, createWaitingState } from '@/services/capabilityState'
 
 const SCENARIOS = Object.freeze({
@@ -365,6 +366,14 @@ export default function useBehaviourIntelligence() {
       }
     })
   }, [scenario, refreshVersion])
+
+  // v0.15.5: feed non-waiting behaviour results to the Behaviour Learning
+  // engine, which aggregates repeated signals into confirm-gated candidates.
+  useEffect(() => {
+    if (!capabilityState.isWaiting && result?.profile) {
+      BehaviourLearningService.observeBehaviour(result)
+    }
+  }, [result, capabilityState.isWaiting])
 
   const behaviourProfiles = useMemo(() => BehaviourProfileRegistry.listProfiles(), [refreshVersion])
 

@@ -33,3 +33,5 @@ export { default as WorkingMemoryService, ITEM_ORIGIN } from './WorkingMemorySer
 export { default as LongTermMemoryEngine } from './LongTermMemoryEngine'
 export { classify, isSafetyCategory, MEMORY_CATEGORY } from './MemoryClassifier'
 export { default as PersonalContextService, CLOUD_POSTURE } from './PersonalContextService'
+export { default as BehaviourLearningService } from './BehaviourLearningService'
+export { parseInferredFact } from './InferenceParser'
