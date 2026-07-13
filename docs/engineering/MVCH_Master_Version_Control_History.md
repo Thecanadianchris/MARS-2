@@ -98,7 +98,8 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 | **v0.15.1** | ✅ Complete | 12 July 2026 | Person-Scoped Memory (Multi-User). Memory keyed by an unbounded `personId` (owner default + explicit "remember Finley's X" person tags), a face-recognition-ready `setActivePerson` hook, chained v2→v3 migration, and a per-person MEM-I view. Pulled in ahead of the originally-planned Short-Term engine because the multi-user monitoring requirement surfaced. Committed with v0.15 in one commit. 35 test files, 155 tests, Build PASS, Release Check PASS, UI PASS. |
 | **v0.15.2** | ✅ Complete | 12 July 2026 | Short-Term Memory Engine. `WorkingMemoryService` bridges the conversation session/context layer to the long-term store: seeds the active person's facts on session start, and promotes working items to long-term through the first genuine `CapabilityRouter` memory-write dispatch. Regression-guarded so the engine's per-turn processing never writes (ChatPanel stays the typed-chat writer). 36 test files, ~162 tests, Build PASS, Release Check PASS, UI PASS. |
 | **v0.15.3** | ✅ Complete | 12 July 2026 | Long-Term Memory Engine. Pure `MemoryClassifier` + `LongTermMemoryEngine`: auto-categorisation (incl. a protected `safety` category), access-based salience ranking, and a safety-aware retention policy. Explicit and safety facts are never auto-forgotten — verified no-op retention on today's data. 37 test files, ~174 tests, Build PASS, Release Check PASS, UI PASS. |
-| **v0.15.4** | 🚧 Next | — | Behaviour Learning & Personal Context (inferred facts, `source: 'inferred'` — first real user of the retention decay path — and per-person context injected into the v0.14.4 reasoning chain). |
+| **v0.15.4** | ✅ Complete | 12 July 2026 | Personal Context. `PersonalContextService` injects the active person's identity + salience-ranked facts into the v0.14.4 reasoning chain so MARS's LLM answers are person-aware. Privacy posture is **on-prem only** — Local/Home tiers get the context, the Cloud (Claude) tier gets none, and safety facts never leave the device. Additive to `reason()` and regression-guarded. 38 test files, 182 tests, Build PASS, Release Check PASS, UI PASS. |
+| **v0.15.5** | ✅ Complete | 12 July 2026 | Behaviour Learning (Inferred Facts). `InferenceParser` + `BehaviourLearningService`: MARS infers facts from conversation ("I love gardening") and from repeated behaviour-engine signals, as **confirm-gated candidates** (identity-style pending→confirmed). Two hard rules: inference never creates a `safety` fact, and nothing is stored/recalled until a human confirms. Confirmed facts are `source: 'inferred'`, confidence <1 (first real users of the v0.15.3 decay path). Silent observation never alters a chat reply. 39 test files, 191 tests, Build PASS, Release Check PASS, UI PASS. |
 
 ---
 
@@ -178,10 +179,14 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 - AI Reasoning Layer (Local → Home → Cloud escalation)
 - Memory Intelligence Foundation & Person-Scoped Memory (Multi-User)
 - Memory Intelligence: Short-Term & Long-Term Engines (working memory, categorisation, salience, safety-aware retention)
+- Memory Intelligence: Personal Context (on-prem, memory-aware AI) & Behaviour Learning (confirm-gated inferred facts) — Phase 6 complete
 
 ### Planned
-- Memory Intelligence: Behaviour Learning & Personal Context (v0.15.4)
 - Face Recognition
+- Protected User Alerting
+- Robot Control
+- Android Runtime
+- Full Mk1 Integration
 - Protected User Alerting
 - Robot Control
 - Android Runtime
