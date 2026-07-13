@@ -24,11 +24,12 @@ import { Brain, Clock, Database, RefreshCw, ShieldCheck, Trash2, User } from 'lu
 import useMemoryIntelligence from '@/hooks/useMemoryIntelligence'
 
 export default function MemoryIntelligencePanel() {
-  const { status, persons, workingMemory, refresh, clearAll } = useMemoryIntelligence()
+  const { status, persons, workingMemory, longTerm, refresh, clearAll } = useMemoryIntelligence()
 
   const categoryEntries = Object.entries(status.categoryCounts || {})
   const workingStatus = workingMemory?.status || {}
   const workingItems = workingMemory?.items || []
+  const lt = longTerm || {}
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
@@ -83,6 +84,15 @@ export default function MemoryIntelligencePanel() {
             <Trash2 size={13} />
             CLEAR ALL
           </button>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2 text-[11px] text-emerald-100">
+          <ShieldCheck size={13} className="text-emerald-300 shrink-0" />
+          <span>
+            Retention: <span className="font-semibold text-white">{lt.protectedCount ?? 0}</span> facts protected
+            {lt.safetyCount ? <> (incl. <span className="font-semibold text-rose-200">{lt.safetyCount} safety</span>)</> : null},
+            {' '}<span className="font-semibold text-white">{lt.eligibleToForget ?? 0}</span> eligible to forget.
+          </span>
         </div>
       </section>
 
@@ -168,14 +178,20 @@ export default function MemoryIntelligencePanel() {
                 </div>
 
                 <div className="space-y-2">
-                  {person.entries.map((entry) => (
+                  {[...person.entries].sort(safetyFirst).map((entry) => (
                     <div
                       key={entry.key}
-                      className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs"
+                      className={`rounded-xl border p-3 text-xs ${
+                        entry.category === 'safety'
+                          ? 'border-rose-400/30 bg-rose-500/[0.07]'
+                          : 'border-cyan-500/20 bg-cyan-500/5'
+                      }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold text-cyan-300">{entry.key}</span>
-                        <span className="rounded-full border border-white/10 px-2 py-0.5 uppercase tracking-widest text-slate-400">
+                        <span className={`font-semibold ${entry.category === 'safety' ? 'text-rose-200' : 'text-cyan-300'}`}>
+                          {entry.key}
+                        </span>
+                        <span className={categoryChipClass(entry.category)}>
                           {entry.category}
                         </span>
                       </div>
@@ -209,4 +225,17 @@ function Metric({ label, value }) {
       <div className="mt-1 uppercase tracking-widest text-slate-500">{label}</div>
     </div>
   )
+}
+
+// Safety facts sort to the top of each person's list.
+function safetyFirst(a, b) {
+  const rank = (entry) => (entry.category === 'safety' ? 0 : 1)
+  return rank(a) - rank(b)
+}
+
+function categoryChipClass(category) {
+  const base = 'rounded-full border px-2 py-0.5 uppercase tracking-widest'
+  return category === 'safety'
+    ? `${base} border-rose-400/40 bg-rose-500/10 text-rose-200`
+    : `${base} border-white/10 text-slate-400`
 }

@@ -29,3 +29,6 @@ export {
 } from './MemoryCommandParser'
 
 export { default as WorkingMemoryService, ITEM_ORIGIN } from './WorkingMemoryService'
+
+export { default as LongTermMemoryEngine } from './LongTermMemoryEngine'
+export { classify, isSafetyCategory, MEMORY_CATEGORY } from './MemoryClassifier'

@@ -51,12 +51,13 @@ describe('Memory Intelligence Service Smoke Test', () => {
     expect(MemoryIntelligenceService.recall('favourite colour')).toBe('red')
   })
 
-  test('getEntry returns the full v0.15 schema with Foundation defaults', () => {
+  test('getEntry returns the full schema; new facts are auto-classified (v0.15.3)', () => {
     MemoryIntelligenceService.remember('name', 'Christian')
     const entry = MemoryIntelligenceService.getEntry('name')
 
     expect(entry.value).toBe('Christian')
-    expect(entry.category).toBe(MEMORY_CATEGORIES.UNCATEGORISED)
+    // v0.15.3: "name" auto-classifies as personal rather than uncategorised.
+    expect(entry.category).toBe(MEMORY_CATEGORIES.PERSONAL)
     expect(entry.source).toBe(MEMORY_SOURCES.USER_EXPLICIT)
     expect(entry.confidence).toBe(1.0)
     expect(entry.createdAt).toBeTruthy()

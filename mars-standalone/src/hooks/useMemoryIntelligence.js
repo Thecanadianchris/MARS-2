@@ -18,16 +18,23 @@
  */
 
 import { useCallback, useState } from 'react'
-import { MemoryIntelligenceService, WorkingMemoryService } from '@/services/memory'
+import { MemoryIntelligenceService, WorkingMemoryService, LongTermMemoryEngine } from '@/services/memory'
 
 export default function useMemoryIntelligence() {
-  const [snapshot, setSnapshot] = useState(() => MemoryIntelligenceService.getSnapshot())
+  // v0.15.3: backfill categories for any older 'uncategorised' facts, then read.
+  const [snapshot, setSnapshot] = useState(() => {
+    LongTermMemoryEngine.categoriseAll()
+    return MemoryIntelligenceService.getSnapshot()
+  })
   const [working, setWorking] = useState(() => WorkingMemoryService.getSnapshot())
+  const [longTerm, setLongTerm] = useState(() => LongTermMemoryEngine.getStatus())
 
   const refresh = useCallback(() => {
+    LongTermMemoryEngine.categoriseAll()
     const next = MemoryIntelligenceService.getSnapshot()
     setSnapshot(next)
     setWorking(WorkingMemoryService.getSnapshot())
+    setLongTerm(LongTermMemoryEngine.getStatus())
     return next
   }, [])
 
@@ -41,6 +48,7 @@ export default function useMemoryIntelligence() {
     status: snapshot.status,
     persons: snapshot.persons,
     workingMemory: working,
+    longTerm,
     refresh,
     clearAll,
   }

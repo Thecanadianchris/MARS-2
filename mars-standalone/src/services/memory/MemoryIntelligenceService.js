@@ -43,6 +43,8 @@
  * ==========================================================
  */
 
+import { classify } from './MemoryClassifier'
+
 const STORAGE_KEY = 'mars_memory_v3'
 const STORAGE_KEY_V2 = 'mars_memory_v2' // v0.15 person-less store
 const LEGACY_STORAGE_KEY = 'mars_memory' // pre-v0.15 flat map
@@ -54,6 +56,7 @@ const STORE_VERSION = 'v0.15.1'
 export const DEFAULT_PERSON_ID = 'christian'
 
 export const MEMORY_CATEGORIES = Object.freeze({
+  SAFETY: 'safety',
   PERSONAL: 'personal',
   PREFERENCE: 'preference',
   FACT: 'fact',
@@ -113,11 +116,13 @@ export function buildEntriesFromLegacy(legacyMap = {}, timestamp = Date.now()) {
     entries[key] = {
       key,
       value,
-      category: MEMORY_CATEGORIES.UNCATEGORISED,
+      category: classify(key, value),
       source: MEMORY_SOURCES.USER_EXPLICIT,
       confidence: 1.0,
       createdAt: timestamp,
       updatedAt: timestamp,
+      lastAccessedAt: null,
+      accessCount: 0,
     }
   }
 
@@ -276,11 +281,15 @@ class MemoryIntelligenceService {
     const entry = {
       key: normalisedKey,
       value,
-      category: options.category || previous?.category || MEMORY_CATEGORIES.UNCATEGORISED,
+      // v0.15.3: auto-classify new facts (safety/personal/preference/fact).
+      // Explicit category or an existing one always wins.
+      category: options.category || previous?.category || classify(normalisedKey, value),
       source: options.source || MEMORY_SOURCES.USER_EXPLICIT,
       confidence: options.confidence ?? previous?.confidence ?? 1.0,
       createdAt: previous?.createdAt || now,
       updatedAt: now,
+      lastAccessedAt: previous?.lastAccessedAt || null,
+      accessCount: previous?.accessCount || 0,
     }
 
     const nextStore = {
@@ -298,13 +307,68 @@ class MemoryIntelligenceService {
   /** Returns the stored value (string) — same contract as the old recall(). */
   recall(key, options = {}) {
     const entry = this.getEntry(key, options)
+
+    if (entry) {
+      // v0.15.3: recall is an intentful access — track it for salience.
+      this.recordAccess(key, options)
+    }
+
     return entry ? entry.value : undefined
   }
 
+  /** getEntry is a pure read (no access tracking). */
   getEntry(key, options = {}) {
     const store = this.getStore()
     const personId = this.resolvePersonId(options)
     return this.getPersonScope(store, personId).entries[normaliseKey(key)] || null
+  }
+
+  /** Bumps lastAccessedAt / accessCount for a fact (used by recall). */
+  recordAccess(key, options = {}) {
+    const store = this.getStore()
+    const personId = this.resolvePersonId(options)
+    const normalisedKey = normaliseKey(key)
+    const scope = this.getPersonScope(store, personId)
+    const entry = scope.entries[normalisedKey]
+
+    if (!entry) {
+      return null
+    }
+
+    const updated = {
+      ...entry,
+      lastAccessedAt: Date.now(),
+      accessCount: (entry.accessCount || 0) + 1,
+    }
+
+    this.persist({
+      ...store,
+      persons: { ...store.persons, [personId]: { entries: { ...scope.entries, [normalisedKey]: updated } } },
+    })
+
+    return updated
+  }
+
+  /** Sets an entry's category (used by the Long-Term Memory Engine backfill). */
+  updateEntryCategory(key, category, options = {}) {
+    const store = this.getStore()
+    const personId = this.resolvePersonId(options)
+    const normalisedKey = normaliseKey(key)
+    const scope = this.getPersonScope(store, personId)
+    const entry = scope.entries[normalisedKey]
+
+    if (!entry || !category) {
+      return null
+    }
+
+    const updated = { ...entry, category }
+
+    this.persist({
+      ...store,
+      persons: { ...store.persons, [personId]: { entries: { ...scope.entries, [normalisedKey]: updated } } },
+    })
+
+    return updated
   }
 
   /**
@@ -346,6 +410,28 @@ class MemoryIntelligenceService {
       personId,
       entryCount: Object.keys(scope.entries || {}).length,
     }))
+  }
+
+  /** Removes a single entry from a person's scope (used by retention). */
+  forgetEntry(key, options = {}) {
+    const store = this.getStore()
+    const personId = this.resolvePersonId(options)
+    const normalisedKey = normaliseKey(key)
+    const scope = this.getPersonScope(store, personId)
+
+    if (!scope.entries[normalisedKey]) {
+      return false
+    }
+
+    const nextEntries = { ...scope.entries }
+    delete nextEntries[normalisedKey]
+
+    this.persist({
+      ...store,
+      persons: { ...store.persons, [personId]: { entries: nextEntries } },
+    })
+
+    return true
   }
 
   /** Clears one person's scope (default person when unspecified). */
