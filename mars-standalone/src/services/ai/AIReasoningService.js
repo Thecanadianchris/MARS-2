@@ -43,15 +43,24 @@ export const MARS_REASONING_SYSTEM_PROMPT =
   "Address the user as Christian when it feels natural."
 
 class AIReasoningService {
-  async reason({ prompt, system = MARS_REASONING_SYSTEM_PROMPT } = {}) {
+  async reason({ prompt, system = MARS_REASONING_SYSTEM_PROMPT, personalContext = null } = {}) {
     const trail = []
 
     if (!prompt || !prompt.trim()) {
       return { provider: 'NONE', status: 'error', response: null, trail, detail: 'No prompt supplied.' }
     }
 
+    // v0.15.4: per-tier system prompt. Personal context is injected for the
+    // on-prem tiers only; the cloud tier receives the base system prompt with
+    // no personal context (on-prem-only privacy posture). Passing no
+    // personalContext leaves behaviour identical to v0.14.4.
+    const systemFor = (contextKey) => {
+      const context = personalContext ? personalContext[contextKey] : null
+      return context ? `${system}\n\n${context}` : system
+    }
+
     // Tier 1 — Local device (S22). Honest stub until v0.19.x.
-    const localResult = await LocalProvider.reason({ prompt, system })
+    const localResult = await LocalProvider.reason({ prompt, system: systemFor('onPrem') })
     trail.push({ tier: LocalProvider.name, outcome: localResult.status, detail: localResult.detail || null })
 
     if (localResult.status === 'success') {
@@ -59,15 +68,15 @@ class AIReasoningService {
     }
 
     // Tier 2 — Home AI server (Ollama on the base station).
-    const homeResult = await HomeProvider.reason({ prompt, system })
+    const homeResult = await HomeProvider.reason({ prompt, system: systemFor('onPrem') })
     trail.push({ tier: HomeProvider.name, outcome: homeResult.status, detail: homeResult.detail || null })
 
     if (homeResult.status === 'success') {
       return { ...homeResult, trail }
     }
 
-    // Tier 3 — Cloud AI (Claude), last resort.
-    const cloudResult = await CloudProvider.reason({ prompt, system })
+    // Tier 3 — Cloud AI (Claude), last resort. No personal context (cloud key).
+    const cloudResult = await CloudProvider.reason({ prompt, system: systemFor('cloud') })
     trail.push({ tier: CloudProvider.name, outcome: cloudResult.status, detail: cloudResult.detail || null })
 
     if (cloudResult.status === 'success') {

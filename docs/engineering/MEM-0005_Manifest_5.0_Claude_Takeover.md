@@ -3,7 +3,7 @@
 Document ID: MEM-0005
 Status: Active — clean-start reference for engineering continuity
 Date: 9 July 2026
-Last Updated: 12 July 2026 (v0.15 Memory Intelligence Foundation + v0.15.1 Person-Scoped Memory complete, committed `939ca97`; see SESSION_HANDOFF_2026-07-12.md for the short current-state summary)
+Last Updated: 12 July 2026 (Phase 6 Memory Intelligence complete through v0.15.3 — Foundation, Person-Scoped, Short-Term, Long-Term; v0.15/v0.15.1 committed `939ca97`, v0.15.2/v0.15.3 validated + commit pending; see SESSION_HANDOFF_2026-07-12.md)
 Purpose: Marks the point at which engineering continuity for the MARS Software Project transferred from ChatGPT to Claude. This document combines the Manifest and Handover formats into a single, code-verified clean-start reference. Prior ChatGPT-era manifests and handover volumes have been archived (see Archive Note below) but remain available for history; nothing in them is lost, this document simply supersedes them as the active reference going forward.
 
 Unlike prior MEM documents, this one is based on a direct code review of the live repository, not solely on prior handover documentation. Where the two disagreed, the code review takes precedence and is noted below.
@@ -16,10 +16,10 @@ Unlike prior MEM documents, this one is based on a direct code review of the liv
 
 | Item | Status |
 |---|---|
-| Last fully complete milestone | v0.15.1 — Person-Scoped Memory (Multi-User). Memory keyed by unbounded `personId` (owner default + explicit person tags), face-recognition-ready `setActivePerson` hook. Builds on v0.15 Memory Intelligence Foundation (real store, Notes absorbed via regression-safe shim, honest read-wiring, MEM-I panel). |
-| In-progress milestone | v0.14.2 — Natural Conversation Engine (diagnostics panel built; chat shares routing with the engine for cancel/confirm/clarify/vision; engine-driven memory writes still deferred to v0.15.2, so not marked fully complete) |
-| Test baseline | 35 test files, 155 tests — Build PASS, Release Check PASS, UI PASS (memory round-trip + person-scoping verified live) |
-| Next milestone | v0.15.2 — Short-Term Memory Engine (engine-driven writes via CapabilityRouter), then v0.16 Face Recognition (wires `setActivePerson`) |
+| Last fully complete milestone | v0.15.3 — Long-Term Memory Engine (heuristic categorisation incl. protected `safety` category, access-based salience ranking, safety-aware retention that never forgets explicit/safety facts). Builds on v0.15.2 Short-Term Memory Engine (`WorkingMemoryService` seed + promote via `CapabilityRouter` write dispatch) and v0.15/v0.15.1 (person-scoped store). |
+| In-progress milestone | v0.14.2 — Natural Conversation Engine (diagnostics panel built; chat shares routing with the engine for cancel/confirm/clarify/vision; engine-driven memory writes now exist via WorkingMemory promotion, but ChatPanel remains the typed-chat writer, so still framed as in-progress) |
+| Test baseline | ~37 test files, ~174 tests — Build PASS, Release Check PASS, UI PASS (categorisation, safety highlighting, retention no-op verified live). v0.15/v0.15.1 committed (`939ca97`); v0.15.2 + v0.15.3 validated, commit pending. |
+| Next milestone | v0.15.4 — Behaviour Learning & Personal Context (inferred facts + memory into the v0.14.4 reasoning chain), then v0.16 Face Recognition (wires `setActivePerson`) |
 
 ## 2. Verified Source of Truth
 
@@ -68,6 +68,8 @@ A second, more complete and more current manifest/handover trail was found insid
 - `Engineering_Manifest_v0.14.4_AI_Reasoning_Layer.md`
 - `Engineering_Manifest_v0.15_Memory_Intelligence_Foundation.md`
 - `Engineering_Manifest_v0.15.1_Person_Scoped_Memory.md`
+- `Engineering_Manifest_v0.15.2_Short_Term_Memory_Engine.md`
+- `Engineering_Manifest_v0.15.3_Long_Term_Memory_Engine.md`
 
 All files from this trail, including the 2 that were `.docx`, are now consolidated in `docs/engineering/manifest-history/` — the sandbox-blocked move noted in earlier versions of this document was completed via computer-use screen control. `manifest-history/` is the sole authoritative per-milestone record going forward; `mars-standalone/docs/` no longer holds any manifest content.
 
@@ -86,15 +88,16 @@ All files from this trail, including the 2 that were `.docx`, are now consolidat
 
 ## 5. Roadmap Forward
 
-See `MVCH_Master_Version_Control_History.md` (same folder) for the full versioned roadmap through v0.20.4 (MARS Mk1 Production Release). v0.14.4 AI Reasoning Layer is complete (pulled forward from v0.19.3; that slot now means replacing the LocalProvider stub with a real on-device model on the S22). v0.15 Memory Intelligence Foundation and v0.15.1 Person-Scoped Memory are complete. Immediate next step: v0.15.2 Short-Term Memory Engine (engine-driven writes dispatched through `CapabilityRouter`), then v0.16 Face Recognition (which wires `MemoryIntelligenceService.setActivePerson` so "my …" attaches to the recognised person).
+See `MVCH_Master_Version_Control_History.md` (same folder) for the full versioned roadmap through v0.20.4 (MARS Mk1 Production Release). v0.14.4 AI Reasoning Layer is complete. Phase 6 Memory Intelligence is complete through **v0.15.3**: Foundation (v0.15), Person-Scoped Memory (v0.15.1), Short-Term Memory Engine (v0.15.2), Long-Term Memory Engine (v0.15.3). Immediate next step: **v0.15.4 Behaviour Learning & Personal Context** (inferred facts + per-person context into the v0.14.4 reasoning chain), then v0.16 Face Recognition (which wires `MemoryIntelligenceService.setActivePerson` so "my …" attaches to the recognised person).
 
 ## 6. Open Items for Next Engineering Session
 
 - **v0.14.4 end-to-end — DONE (12 July 2026).** Ollama ARM64 + `qwen3.5:4b` installed on the base station; Claude key entered at runtime. Both live paths confirmed: Home tier answering in panel and chat (`via HOME_AI_SERVER`), and Cloud escalation to Claude when Home was down (first real AI response in MARS history). Full debugging record (browser 503 → same-origin `/ollama` Vite proxy fix, thinking-model `think:false` fix, 60s timeout) is in the v0.14.4 manifest §7.
 - **v0.15 + v0.15.1 — DONE (12 July 2026, commit `939ca97`).** Memory absorbed the Notes store via a regression-safe shim (decision: absorb, taken this session) and became person-scoped by unbounded `personId` (owner default + explicit person tags). Honest read-wiring replaced the old "begins in v0.15" placeholders. 35 files / 155 tests, Build + Release Check + UI all PASS.
-- `CapabilityRouter.js` is still unwired. Its memory branch now returns a real read, but engine-driven memory **writes** through it are the v0.15.2 job — that's the next dispatch decision.
-- **v0.15.2 Short-Term Memory Engine** — next milestone: wire `NaturalConversationEngine`/`CapabilityRouter` to write per-person session memory.
-- **v0.16 Face Recognition** — will call `MemoryIntelligenceService.setActivePerson(personId)` once an identity is confirmed, so untagged "my …" attaches to the recognised person. Hook already exists.
+- **v0.15.2 + v0.15.3 — DONE (12 July 2026), validated (~37 files / ~174 tests), commit PENDING.** v0.15.2 added `WorkingMemoryService` (seed from long-term + promote via the first real `CapabilityRouter` memory-write dispatch). v0.15.3 added `MemoryClassifier` + `LongTermMemoryEngine` (categorisation incl. protected `safety`, salience ranking, safety-aware retention that never forgets explicit/safety facts). Both stacked uncommitted on top of `939ca97` — commit before adding more.
+- `CapabilityRouter.js` now performs a real memory **write** when `plan.memoryOp === 'write'` (used by WorkingMemory promotion). It is still not wired into the live turn loop otherwise.
+- **v0.15.4 Behaviour Learning & Personal Context** — next milestone: inferred facts (`source: 'inferred'`, first real user of the retention decay path) and feeding per-person memory into the v0.14.4 reasoning chain.
+- **v0.16 Face Recognition** — will call `MemoryIntelligenceService.setActivePerson(personId)` once an identity is confirmed, so untagged "my …" attaches to the recognised person; this also triggers the v0.15.2 working-memory seed. Hook already exists.
 - Confirm the `main` fast-forward merge completed (was 7 commits behind at the 12 July GitHub check).
 - Optional: write a root README for the GitHub repo (currently none).
 - All doc-housekeeping items from earlier versions of this document are resolved (see Section 7); a full repo structural review (12 July) additionally removed the shadowed duplicate modules and confirmed gitignore coverage, docs layout, and a clean src tree.

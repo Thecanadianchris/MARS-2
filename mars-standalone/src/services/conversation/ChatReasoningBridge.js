@@ -31,6 +31,8 @@
  */
 
 import AIReasoningService from '@/services/ai/AIReasoningService'
+import MemoryIntelligenceService from '@/services/memory/MemoryIntelligenceService'
+import PersonalContextService from '@/services/memory/PersonalContextService'
 import { isGenericFallback } from './ChatConversationBridge'
 
 export function shouldEscalateToReasoning(reply) {
@@ -47,7 +49,19 @@ export async function buildReasonedChatReply({
   }
 
   try {
-    const result = await reasoningService.reason({ prompt: content })
+    // v0.15.4: enrich the prompt with the active person's context for the
+    // on-prem tiers (cloud gets none — on-prem-only posture). Only attach it
+    // when there is actually something to send, so a memory-less turn calls
+    // reason exactly as before.
+    const reasonArgs = { prompt: content }
+    const activePersonId = MemoryIntelligenceService.getActivePersonId()
+    const personalContext = PersonalContextService.buildTierBundle(activePersonId)
+
+    if (personalContext.onPrem || personalContext.cloud) {
+      reasonArgs.personalContext = personalContext
+    }
+
+    const result = await reasoningService.reason(reasonArgs)
 
     if (result?.status === 'success' && typeof result.response === 'string' && result.response.trim()) {
       return {

@@ -18,7 +18,12 @@
  */
 
 import { useCallback, useState } from 'react'
-import { MemoryIntelligenceService, WorkingMemoryService, LongTermMemoryEngine } from '@/services/memory'
+import {
+  MemoryIntelligenceService,
+  WorkingMemoryService,
+  LongTermMemoryEngine,
+  PersonalContextService,
+} from '@/services/memory'
 
 export default function useMemoryIntelligence() {
   // v0.15.3: backfill categories for any older 'uncategorised' facts, then read.
@@ -28,6 +33,9 @@ export default function useMemoryIntelligence() {
   })
   const [working, setWorking] = useState(() => WorkingMemoryService.getSnapshot())
   const [longTerm, setLongTerm] = useState(() => LongTermMemoryEngine.getStatus())
+  const [personalContext, setPersonalContext] = useState(() =>
+    PersonalContextService.getPreview(MemoryIntelligenceService.getActivePersonId())
+  )
 
   const refresh = useCallback(() => {
     LongTermMemoryEngine.categoriseAll()
@@ -35,6 +43,7 @@ export default function useMemoryIntelligence() {
     setSnapshot(next)
     setWorking(WorkingMemoryService.getSnapshot())
     setLongTerm(LongTermMemoryEngine.getStatus())
+    setPersonalContext(PersonalContextService.getPreview(MemoryIntelligenceService.getActivePersonId()))
     return next
   }, [])
 
@@ -49,6 +58,7 @@ export default function useMemoryIntelligence() {
     persons: snapshot.persons,
     workingMemory: working,
     longTerm,
+    personalContext,
     refresh,
     clearAll,
   }

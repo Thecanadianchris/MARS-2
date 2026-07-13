@@ -20,16 +20,17 @@
  * ==========================================================
  */
 
-import { Brain, Clock, Database, RefreshCw, ShieldCheck, Trash2, User } from 'lucide-react'
+import { Brain, Clock, Cpu, Database, Lock, RefreshCw, ShieldCheck, Trash2, User } from 'lucide-react'
 import useMemoryIntelligence from '@/hooks/useMemoryIntelligence'
 
 export default function MemoryIntelligencePanel() {
-  const { status, persons, workingMemory, longTerm, refresh, clearAll } = useMemoryIntelligence()
+  const { status, persons, workingMemory, longTerm, personalContext, refresh, clearAll } = useMemoryIntelligence()
 
   const categoryEntries = Object.entries(status.categoryCounts || {})
   const workingStatus = workingMemory?.status || {}
   const workingItems = workingMemory?.items || []
   const lt = longTerm || {}
+  const pc = personalContext || {}
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
@@ -149,6 +150,40 @@ export default function MemoryIntelligencePanel() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-indigo-400/20 bg-indigo-500/[0.06] p-4">
+        <div className="flex items-center justify-between gap-3 text-indigo-200">
+          <div className="flex items-center gap-2">
+            <Cpu size={16} />
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em]">Personal Context → AI</h2>
+          </div>
+          <span className="flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-emerald-200">
+            <Lock size={10} /> on-prem only
+          </span>
+        </div>
+
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+          v0.15.4 — what MARS tells the on-device / home AI about the active person ({pc.activePersonId || 'none'}) when it escalates a question. The cloud tier (Claude) receives none of this.
+        </p>
+
+        {pc.onPrem ? (
+          <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-indigo-400/20 bg-slate-950/70 p-3 text-[11px] leading-relaxed text-indigo-100">
+{pc.onPrem}
+          </pre>
+        ) : (
+          <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/60 p-3 text-[11px] text-slate-400">
+            No personal context yet — nothing stored for the active person.
+          </div>
+        )}
+
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2 text-[11px] text-emerald-100">
+          <ShieldCheck size={13} className="text-emerald-300 shrink-0" />
+          <span>
+            To cloud (Claude): <span className="font-semibold text-white">nothing</span>.
+            {pc.safetyCount ? <> {pc.safetyCount} safety fact{pc.safetyCount === 1 ? '' : 's'} stay device-locked.</> : null}
+          </span>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">

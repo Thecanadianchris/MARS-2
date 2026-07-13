@@ -96,9 +96,9 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 |---|---|---|---|
 | **v0.15** | ✅ Complete | 12 July 2026 | Memory Intelligence Foundation. Real `MemoryIntelligenceService` store with a richer schema, loss-free migration, absorbed the Notes/`memory.js` store via a regression-safe shim (ChatPanel/Notes untouched), honest conversation-layer read-wiring, and the MEM-I diagnostics panel. |
 | **v0.15.1** | ✅ Complete | 12 July 2026 | Person-Scoped Memory (Multi-User). Memory keyed by an unbounded `personId` (owner default + explicit "remember Finley's X" person tags), a face-recognition-ready `setActivePerson` hook, chained v2→v3 migration, and a per-person MEM-I view. Pulled in ahead of the originally-planned Short-Term engine because the multi-user monitoring requirement surfaced. Committed with v0.15 in one commit. 35 test files, 155 tests, Build PASS, Release Check PASS, UI PASS. |
-| **v0.15.2** | 🔜 Planned | — | Short-Term Memory Engine (session working memory; engine-driven writes dispatched through CapabilityRouter). |
-| **v0.15.3** | 🔜 Planned | — | Long-Term Memory Engine (consolidation, categories in use, per-person forgetting/decay). |
-| **v0.15.4** | 🔜 Planned | — | Behaviour Learning & Personal Context (inferred facts + per-person context injected into the v0.14.4 reasoning chain). |
+| **v0.15.2** | ✅ Complete | 12 July 2026 | Short-Term Memory Engine. `WorkingMemoryService` bridges the conversation session/context layer to the long-term store: seeds the active person's facts on session start, and promotes working items to long-term through the first genuine `CapabilityRouter` memory-write dispatch. Regression-guarded so the engine's per-turn processing never writes (ChatPanel stays the typed-chat writer). 36 test files, ~162 tests, Build PASS, Release Check PASS, UI PASS. |
+| **v0.15.3** | ✅ Complete | 12 July 2026 | Long-Term Memory Engine. Pure `MemoryClassifier` + `LongTermMemoryEngine`: auto-categorisation (incl. a protected `safety` category), access-based salience ranking, and a safety-aware retention policy. Explicit and safety facts are never auto-forgotten — verified no-op retention on today's data. 37 test files, ~174 tests, Build PASS, Release Check PASS, UI PASS. |
+| **v0.15.4** | 🚧 Next | — | Behaviour Learning & Personal Context (inferred facts, `source: 'inferred'` — first real user of the retention decay path — and per-person context injected into the v0.14.4 reasoning chain). |
 
 ---
 
@@ -177,9 +177,10 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 - Voice Audio Pipeline & Chat/Voice Bridge
 - AI Reasoning Layer (Local → Home → Cloud escalation)
 - Memory Intelligence Foundation & Person-Scoped Memory (Multi-User)
+- Memory Intelligence: Short-Term & Long-Term Engines (working memory, categorisation, salience, safety-aware retention)
 
 ### Planned
-- Memory Intelligence: Short/Long-Term Engines & Personal Context (v0.15.2–v0.15.4)
+- Memory Intelligence: Behaviour Learning & Personal Context (v0.15.4)
 - Face Recognition
 - Protected User Alerting
 - Robot Control
