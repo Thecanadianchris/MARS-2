@@ -1,9 +1,9 @@
 # Engineering Manifest — v0.16 Face Recognition Foundation
 
 Document status: Milestone record (authoritative copy, `manifest-history/`)
-Date: 13 July 2026
+Date: 13 July 2026 (live-camera verification completed 14 July 2026)
 Branch: `feature/v0.13.0-identity-foundation`
-**Confirmed baseline after this milestone: 40 test files, 211 tests, all passing. Build PASS.** (`npm run release-check`, run by Christian 13 July 2026 — exact match to the projection made while the shell/sandbox was unavailable this session.) **Live-camera verification is still outstanding** — no camera existed in the build sandbox, so this remains the one open item before commit; see §7.
+**Confirmed baseline after this milestone: 40 test files, 211 tests, all passing. Build PASS.** (`npm run release-check`, run by Christian 13 July 2026 — exact match to the projection made while the shell/sandbox was unavailable this session.) **Live-camera verification: PASS (14 July 2026)** — see §7. Milestone is ✅ Complete.
 
 Prior baseline: v0.15.5 — 39 files, 191 tests (committed `ae544ba`). Phase 6 Memory Intelligence complete.
 
@@ -71,12 +71,18 @@ Two existing tests asserted a fresh (untracked) face immediately reports `UNKNOW
 
 **`npm run release-check` — DONE (13 July 2026, Christian).** 40 test files, 211 tests, all passing. Build PASS (`vite build`, 2117 modules transformed, 3.60s). Matches the projection exactly. One pre-existing (not new to this milestone) build warning: the production JS bundle is 821.56 kB (229.34 kB gzip), over Vite's 500 kB chunk-size warning threshold — `@mediapipe/tasks-vision` was already a dependency before v0.16 added its second consumer (`FaceLandmarkService`, alongside `PoseDetectionService`); code-splitting is a reasonable future cleanup but not a v0.16 regression or blocker.
 
-**Still outstanding — live-camera UI check.** No camera existed in the build sandbox, so this remains the one open item before commit. Open the Identity tab first and confirm the panel no longer errors on `capabilityState`/`clearSimulation` (previously undefined — fixed this milestone). A full live-camera recognition check needs a registration path first — v0.16.1 owns building that UI; for now, `FaceRecognitionService.enroll(personId, landmarks)` can be called directly (e.g. from the browser console against a captured frame's `faceLandmarks`) to bootstrap a test enrollment for `christian`/`ann`/`finley` and confirm a live match against `VisionPanel`'s camera feed reaches `KNOWN`/`TRUSTED`/`PROTECTED` and the MEM-I panel's active person updates accordingly.
+**Live-camera check — DONE (14 July 2026).** Identity tab confirmed clean (no `capabilityState`/`clearSimulation` errors). With no enrollment UI yet (that's v0.16.1's job), the test bootstrapped an enrollment directly via `FaceRecognitionService.enroll('christian', landmarks)`, called against the live Vite dev-server module singleton from the browser devtools console (landmarks read from `LivePipelineStore.getLatestResult().faceLandmarks`, 478 points from the real webcam feed). 4 samples enrolled. The next processed frame resolved `identity.state: 'trusted'`, `profile.id: 'christian'`, `identityConfidence: 0.93` (candidate confidence 0.9335), and `MemoryIntelligenceService.getActivePersonId()` flipped from its prior value to `'christian'` — confirming `shouldActivatePerson()`'s ≥0.85 gate and the `setActivePerson` payoff both fire correctly against a real camera feed, not just synthetic test data or UI simulation. No console errors during camera operation. A page reload cleared the enrollment (confirms `FaceEnrollmentStore` is in-memory-only, as designed) and identity correctly returned to `searching`.
 
-Then, once the live check is done:
+**Matcher upgrade — done same day (14 July 2026), before commit.** Christian ran a further live test pointing the camera at Ann (unenrolled) with only Christian enrolled — the landmark-geometry matcher misidentified her as Christian. Diagnosed live (see `ENGINEERING_BACKLOG.md`'s "Known safety-relevant limitation" entry): the 8-ratio geometry signature isn't discriminative enough between two real different people. Christian's call: "this is not good enough at this stage" — rather than retune thresholds on a fundamentally weak matcher, swapped it for a real on-device face-embedding model (`@vladmandic/face-api`, 128-d descriptors), exactly the "Option B" drop-in replacement the original scoping doc designed `FaceRecognitionService`'s interface to allow. New: `FaceEmbeddingService.js` (vision), `FaceEmbeddingEngine.js` (identity). `FaceSignatureEngine.js` kept but superseded. Full detail in `ENGINEERING_BACKLOG.md`. **This changes §3/§6 above** (matcher description, files list) — treat this note as the authoritative update rather than editing history above.
+
+**Outstanding before commit:**
+1. Christian needs to run `npm install` (added `@vladmandic/face-api` to `package.json`, no shell access this session to install it directly) then `npm run release-check`.
+2. The actual re-test that motivated this — enroll Ann for real and confirm the embedding model can tell her and Christian apart live — has not happened yet. This was tested with synthetic data in the rewritten smoke tests, not yet with two real people.
+
+Once both pass:
 ```
 git add -A
-git commit -m "feat: v0.16 face recognition foundation — real landmark-geometry matcher, SEARCHING state, setActivePerson payoff"
+git commit -m "feat: v0.16 face recognition foundation — real face-embedding matcher, SEARCHING state, setActivePerson payoff, live-camera UI"
 git push origin feature/v0.13.0-identity-foundation
 ```
 

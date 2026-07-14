@@ -99,7 +99,14 @@ export default function Control() {
           />
         )}
 
-        {tab === 'vision' && <VisionPanel />}
+        {/* v0.16.1: kept mounted (CSS-hidden, not unmounted) rather than
+            `{tab === 'vision' && <VisionPanel />}` so the camera stream
+            and ContinuousVisionMonitor keep running when the user
+            navigates to another tab — MARS should always be watching,
+            not just while the Vision tab happens to be open. */}
+        <div className={tab === 'vision' ? 'contents' : 'hidden'}>
+          <VisionPanel />
+        </div>
 
         {tab === 'identity' && <IdentityPanel />}
 

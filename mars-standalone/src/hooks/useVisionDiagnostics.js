@@ -18,6 +18,13 @@
  */
 
 import { useMemo } from 'react'
+import { IDENTITY_STATES } from '@/services/identity/IdentityTypes'
+
+const IDENTIFIED_STATES = [
+  IDENTITY_STATES.KNOWN,
+  IDENTITY_STATES.TRUSTED,
+  IDENTITY_STATES.PROTECTED,
+]
 
 function normaliseConfidence(value) {
   if (typeof value !== 'number') {
@@ -100,6 +107,18 @@ export default function useVisionDiagnostics({
 
     const liveFrameCount = visionResult?.performance?.processedFrameCount || 0
 
+    // v0.16.1: say who, not just whether. `visionResult.identity` is the
+    // full IdentityEngine result VisionPipeline attaches to every live
+    // frame — reuse it here instead of just the person/face detection
+    // booleans, same source of truth as the ID tab's live identity read.
+    const identity = visionResult?.identity || null
+    const isIdentified = Boolean(identity && IDENTIFIED_STATES.includes(identity.state))
+    const identifiedName = isIdentified ? identity.profile?.displayName : null
+
+    const personValue = !personDetected
+      ? 'No Person'
+      : identifiedName || 'Person Unknown'
+
     return {
       camera: {
         value: frameStatus?.cameraReady ? 'Active' : 'Inactive',
@@ -110,8 +129,8 @@ export default function useVisionDiagnostics({
       },
 
       person: {
-        value: personDetected ? 'Person Detected' : 'No Person',
-        status: personDetected ? 'good' : 'neutral',
+        value: personValue,
+        status: !personDetected ? 'neutral' : identifiedName ? 'good' : 'warning',
         subtitle: `Confidence: ${Math.round(confidence * 100)}%`,
       },
 

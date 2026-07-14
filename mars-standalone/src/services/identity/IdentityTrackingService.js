@@ -17,13 +17,15 @@
  *
  * v0.16: identityConfidence/candidateProfiles are now real,
  * produced by FaceRecognitionService, instead of the hardcoded
- * 0/[] this service shipped with in v0.13.1.
+ * 0/[] this service shipped with in v0.13.1. v0.16.1: reads
+ * faceEmbedding (128-d neural descriptor) instead of faceLandmarks
+ * (geometry ratios) — see FaceRecognitionService's header for why.
  *
  * Version:
- * v0.16.0
+ * v0.16.1
  *
  * Date Code:
- * 130726
+ * 140726
  * ==========================================================
  */
 
@@ -74,7 +76,7 @@ class IdentityTrackingService {
     })
 
     const faceRecognitionResult = FaceRecognitionService.recognise({
-      landmarks: safePerception.faceLandmarks,
+      embedding: safePerception.faceEmbedding,
       faceQualityResult: faceQuality,
     })
 

@@ -6,30 +6,36 @@
  * FaceRecognitionFoundationSmokeTest
  *
  * Purpose:
- * Vitest smoke test for the v0.16 Face Recognition Foundation:
- * FaceSignatureEngine (pure geometry math), FaceEnrollmentStore,
- * FaceRecognitionService, the SEARCHING identity state, and the
- * shouldActivatePerson()/setActivePerson() payoff gate.
+ * Vitest smoke test for the Face Recognition Foundation:
+ * FaceEmbeddingEngine (pure descriptor-comparison math),
+ * FaceEnrollmentStore, FaceRecognitionService, the SEARCHING
+ * identity state, and the shouldActivatePerson()/setActivePerson()
+ * payoff gate.
  *
- * MediaPipe's FaceLandmarker itself is not exercised here (same
- * convention as PoseDetectionService — no dedicated smoke test for
- * the real browser/model call). Everything downstream of a raw
- * landmark array is fully real and fully testable with synthetic
- * landmark data, matching how VisionPipelineSmokeTest exercises
- * PoseDetectionService via a frame with no dataUrl.
+ * v0.16.1: rewritten for the matcher swap from FaceSignatureEngine
+ * (8 landmark-geometry ratios) to FaceEmbeddingEngine (128-d neural
+ * face-embedding descriptors, @vladmandic/face-api via
+ * FaceEmbeddingService) — a live test showed the geometry approach
+ * wasn't discriminative enough between two different real people.
+ *
+ * @vladmandic/face-api's real model inference is not exercised here
+ * (same convention as PoseDetectionService/FaceLandmarkService — no
+ * dedicated smoke test for the real browser/model call). Everything
+ * downstream of a raw descriptor array is fully real and fully
+ * testable with synthetic descriptor data.
  *
  * Version:
- * v0.16.0
+ * v0.16.1
  *
  * Date Code:
- * 130726
+ * 140726
  * ==========================================================
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import FaceEnrollmentStore from '../services/identity/FaceEnrollmentStore.js'
-import FaceRecognitionService from '../services/identity/FaceRecognitionService.js'
-import FaceSignatureEngine, { LANDMARK_INDEX } from '../services/identity/FaceSignatureEngine.js'
+import FaceRecognitionService, { RECOGNITION_PROVIDER } from '../services/identity/FaceRecognitionService.js'
+import FaceEmbeddingEngine from '../services/identity/FaceEmbeddingEngine.js'
 import IdentityEngine from '../services/identity/IdentityEngine.js'
 import IdentityStateMachine from '../services/identity/IdentityStateMachine.js'
 import IdentityTrackingService from '../services/identity/IdentityTrackingService.js'
@@ -46,43 +52,35 @@ describe('Face Recognition Foundation Smoke Test', () => {
     IdentityEngine.reset()
   })
 
-  describe('FaceSignatureEngine', () => {
-    it('returns null for missing or insufficient landmarks', () => {
-      expect(FaceSignatureEngine.computeSignature([])).toBeNull()
-      expect(FaceSignatureEngine.computeSignature(null)).toBeNull()
-      expect(FaceSignatureEngine.computeSignature([{ x: 0.5, y: 0.5 }])).toBeNull()
-    })
-
-    it('computes a signature vector from a well-formed landmark set', () => {
-      const signature = FaceSignatureEngine.computeSignature(buildLandmarks(PERSON_A_POINTS))
-
-      expect(Array.isArray(signature)).toBe(true)
-      expect(signature.length).toBeGreaterThan(0)
-      expect(signature.every((value) => Number.isFinite(value))).toBe(true)
-    })
-
-    it('reports zero distance and full confidence comparing a signature to itself', () => {
-      const signature = FaceSignatureEngine.computeSignature(buildLandmarks(PERSON_A_POINTS))
-      const distance = FaceSignatureEngine.compareSignatures(signature, signature)
+  describe('FaceEmbeddingEngine', () => {
+    it('reports zero distance and full confidence comparing a descriptor to itself', () => {
+      const descriptor = PERSON_A_DESCRIPTOR
+      const distance = FaceEmbeddingEngine.compareSignatures(descriptor, descriptor)
 
       expect(distance).toBe(0)
-      expect(FaceSignatureEngine.distanceToConfidence(distance)).toBe(1)
+      expect(FaceEmbeddingEngine.distanceToConfidence(distance)).toBe(1)
     })
 
     it('reports a meaningfully larger distance between two different faces', () => {
-      const signatureA = FaceSignatureEngine.computeSignature(buildLandmarks(PERSON_A_POINTS))
-      const signatureB = FaceSignatureEngine.computeSignature(buildLandmarks(PERSON_B_POINTS))
-      const distance = FaceSignatureEngine.compareSignatures(signatureA, signatureB)
+      const distance = FaceEmbeddingEngine.compareSignatures(
+        PERSON_A_DESCRIPTOR,
+        PERSON_B_DESCRIPTOR
+      )
 
-      expect(distance).toBeGreaterThan(0.1)
-      expect(FaceSignatureEngine.distanceToConfidence(distance)).toBeLessThan(0.85)
+      expect(distance).toBeGreaterThan(0.6)
+      expect(FaceEmbeddingEngine.distanceToConfidence(distance)).toBe(0)
+    })
+
+    it('returns Infinity for malformed or mismatched descriptors', () => {
+      expect(FaceEmbeddingEngine.compareSignatures(null, PERSON_A_DESCRIPTOR)).toBe(Infinity)
+      expect(FaceEmbeddingEngine.compareSignatures([], [])).toBe(Infinity)
+      expect(FaceEmbeddingEngine.compareSignatures([1, 2], [1, 2, 3])).toBe(Infinity)
     })
   })
 
   describe('FaceEnrollmentStore', () => {
-    it('enrolls and retrieves signatures per person', () => {
-      const signature = FaceSignatureEngine.computeSignature(buildLandmarks(PERSON_A_POINTS))
-      const result = FaceEnrollmentStore.enroll('christian', signature)
+    it('enrolls and retrieves descriptors per person', () => {
+      const result = FaceEnrollmentStore.enroll('christian', PERSON_A_DESCRIPTOR)
 
       expect(result.status).toBe('success')
       expect(FaceEnrollmentStore.isEnrolled('christian')).toBe(true)
@@ -110,8 +108,19 @@ describe('Face Recognition Foundation Smoke Test', () => {
   describe('FaceRecognitionService', () => {
     it('returns zero confidence when face quality is not suitable', () => {
       const result = FaceRecognitionService.recognise({
-        landmarks: buildLandmarks(PERSON_A_POINTS),
+        embedding: PERSON_A_DESCRIPTOR,
         faceQualityResult: { suitable: false },
+      })
+
+      expect(result.identityConfidence).toBe(0)
+      expect(result.candidateProfiles).toEqual([])
+      expect(result.provider).toBe(RECOGNITION_PROVIDER)
+    })
+
+    it('returns zero confidence when no embedding is available', () => {
+      const result = FaceRecognitionService.recognise({
+        embedding: null,
+        faceQualityResult: { suitable: true },
       })
 
       expect(result.identityConfidence).toBe(0)
@@ -120,7 +129,7 @@ describe('Face Recognition Foundation Smoke Test', () => {
 
     it('returns zero confidence when nobody is enrolled yet', () => {
       const result = FaceRecognitionService.recognise({
-        landmarks: buildLandmarks(PERSON_A_POINTS),
+        embedding: PERSON_A_DESCRIPTOR,
         faceQualityResult: { suitable: true },
       })
 
@@ -128,11 +137,11 @@ describe('Face Recognition Foundation Smoke Test', () => {
       expect(result.candidateProfiles).toEqual([])
     })
 
-    it('recognises an enrolled person from matching landmarks', () => {
-      FaceRecognitionService.enroll('christian', buildLandmarks(PERSON_A_POINTS))
+    it('recognises an enrolled person from a matching embedding', () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
 
       const result = FaceRecognitionService.recognise({
-        landmarks: buildLandmarks(PERSON_A_POINTS),
+        embedding: PERSON_A_DESCRIPTOR,
         faceQualityResult: { suitable: true },
       })
 
@@ -142,15 +151,15 @@ describe('Face Recognition Foundation Smoke Test', () => {
       ])
     })
 
-    it('does not match an enrolled person against a visibly different face', () => {
-      FaceRecognitionService.enroll('christian', buildLandmarks(PERSON_A_POINTS))
+    it('does not match an enrolled person against a visibly different face — the exact failure mode found live with Ann', () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
 
       const result = FaceRecognitionService.recognise({
-        landmarks: buildLandmarks(PERSON_B_POINTS),
+        embedding: PERSON_B_DESCRIPTOR,
         faceQualityResult: { suitable: true },
       })
 
-      expect(result.identityConfidence).toBeLessThan(0.85)
+      expect(result.identityConfidence).toBe(0)
       expect(result.candidateProfiles).toEqual([])
     })
   })
@@ -257,9 +266,9 @@ describe('Face Recognition Foundation Smoke Test', () => {
 
   describe('End-to-end: IdentityTrackingService with a real enrolled match', () => {
     it('produces a RECOGNISED candidate for an enrolled face', () => {
-      FaceRecognitionService.enroll('christian', buildLandmarks(PERSON_A_POINTS))
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
 
-      const perception = createPerceptionWithLandmarks(buildLandmarks(PERSON_A_POINTS))
+      const perception = createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR)
       const result = IdentityTrackingService.updateFromPerception(perception)
 
       expect(result.status).toBe('success')
@@ -271,58 +280,52 @@ describe('Face Recognition Foundation Smoke Test', () => {
     })
 
     it('produces no match for an unenrolled face without breaking the pipeline', () => {
-      const perception = createPerceptionWithLandmarks(buildLandmarks(PERSON_B_POINTS))
+      const perception = createPerceptionWithEmbedding(PERSON_B_DESCRIPTOR)
       const result = IdentityTrackingService.updateFromPerception(perception)
 
       expect(result.status).toBe('success')
       expect(result.candidate.identityConfidence).toBe(0)
       expect(result.candidate.candidateProfiles).toEqual([])
     })
+
+    it('does not confuse a second enrolled person with the first (the exact scenario found live with Ann)', () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
+      FaceRecognitionService.enroll('ann', PERSON_B_DESCRIPTOR)
+
+      const resultForAnn = IdentityTrackingService.updateFromPerception(
+        createPerceptionWithEmbedding(PERSON_B_DESCRIPTOR)
+      )
+
+      expect(resultForAnn.candidate.candidateProfiles).toEqual([
+        { profileId: 'ann', confidence: resultForAnn.candidate.identityConfidence },
+      ])
+    })
   })
 })
 
-// ---- synthetic landmark fixtures ----
+// ---- synthetic 128-d descriptor fixtures ----
+// Not real face embeddings (no model is run in this test) — two
+// deliberately far-apart vectors standing in for "two different
+// people", and reused-as-is for "the same person again" comparisons,
+// exactly like the old landmark fixtures stood in for real MediaPipe
+// output.
 
-const PERSON_A_POINTS = {
-  [LANDMARK_INDEX.LEFT_EYE_OUTER]: { x: 0.35, y: 0.4 },
-  [LANDMARK_INDEX.LEFT_EYE_INNER]: { x: 0.45, y: 0.4 },
-  [LANDMARK_INDEX.RIGHT_EYE_INNER]: { x: 0.55, y: 0.4 },
-  [LANDMARK_INDEX.RIGHT_EYE_OUTER]: { x: 0.65, y: 0.4 },
-  [LANDMARK_INDEX.NOSE_TIP]: { x: 0.5, y: 0.5 },
-  [LANDMARK_INDEX.FOREHEAD_TOP]: { x: 0.5, y: 0.2 },
-  [LANDMARK_INDEX.CHIN_BOTTOM]: { x: 0.5, y: 0.8 },
-  [LANDMARK_INDEX.MOUTH_LEFT]: { x: 0.42, y: 0.65 },
-  [LANDMARK_INDEX.MOUTH_RIGHT]: { x: 0.58, y: 0.65 },
-  [LANDMARK_INDEX.FACE_EDGE_LEFT]: { x: 0.25, y: 0.5 },
-  [LANDMARK_INDEX.FACE_EDGE_RIGHT]: { x: 0.75, y: 0.5 },
-}
+const DESCRIPTOR_LENGTH = 128
 
-const PERSON_B_POINTS = {
-  [LANDMARK_INDEX.LEFT_EYE_OUTER]: { x: 0.35, y: 0.4 },
-  [LANDMARK_INDEX.LEFT_EYE_INNER]: { x: 0.45, y: 0.4 },
-  [LANDMARK_INDEX.RIGHT_EYE_INNER]: { x: 0.55, y: 0.4 },
-  [LANDMARK_INDEX.RIGHT_EYE_OUTER]: { x: 0.65, y: 0.4 },
-  [LANDMARK_INDEX.NOSE_TIP]: { x: 0.5, y: 0.44 },
-  [LANDMARK_INDEX.FOREHEAD_TOP]: { x: 0.5, y: 0.27 },
-  [LANDMARK_INDEX.CHIN_BOTTOM]: { x: 0.5, y: 0.68 },
-  [LANDMARK_INDEX.MOUTH_LEFT]: { x: 0.46, y: 0.56 },
-  [LANDMARK_INDEX.MOUTH_RIGHT]: { x: 0.54, y: 0.56 },
-  [LANDMARK_INDEX.FACE_EDGE_LEFT]: { x: 0.31, y: 0.5 },
-  [LANDMARK_INDEX.FACE_EDGE_RIGHT]: { x: 0.69, y: 0.5 },
-}
+const PERSON_A_DESCRIPTOR = buildDescriptor(0.1)
+const PERSON_B_DESCRIPTOR = buildDescriptor(0.9)
 
-function buildLandmarks(overridesByIndex) {
-  const maxIndex = Math.max(...Object.values(LANDMARK_INDEX))
-  const landmarks = new Array(maxIndex + 1).fill(null).map(() => ({ x: 0.5, y: 0.5, z: 0 }))
-
-  Object.entries(overridesByIndex).forEach(([index, point]) => {
-    landmarks[Number(index)] = { ...point, z: 0 }
+function buildDescriptor(baseValue) {
+  return new Array(DESCRIPTOR_LENGTH).fill(0).map((_, index) => {
+    // Small deterministic per-index variation so the vector isn't a
+    // flat constant (which would trivially minimise distance math),
+    // while keeping every "Person A" vector clearly separated from
+    // every "Person B" vector.
+    return baseValue + (index % 5) * 0.001
   })
-
-  return landmarks
 }
 
-function createPerceptionWithLandmarks(landmarks) {
+function createPerceptionWithEmbedding(embedding) {
   return {
     status: 'success',
     provider: 'FACE_RECOGNITION_SMOKE_TEST',
@@ -338,7 +341,7 @@ function createPerceptionWithLandmarks(landmarks) {
       faceCount: 1,
       confidence: 90,
     },
-    faceLandmarks: landmarks,
+    faceEmbedding: embedding,
     observationStream: {
       ids: ['person_present'],
       observations: [],

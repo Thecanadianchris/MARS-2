@@ -15,16 +15,18 @@
  *
  * This engine accepts neutral perception results or provider-
  * neutral Recognition Candidates. As of v0.16, real face
- * recognition (a landmark-geometry matcher, Foundation-grade
- * not biometric-grade) fills the RecognitionCandidate slot this
- * engine was built to receive back in v0.13.1 — see
- * FaceRecognitionService.
+ * recognition fills the RecognitionCandidate slot this engine was
+ * built to receive back in v0.13.1 — see FaceRecognitionService.
+ * v0.16.1 swapped the matcher itself from an 8-ratio landmark-
+ * geometry signature to a real 128-d face-embedding descriptor,
+ * after a live test showed the geometry approach wasn't
+ * discriminative enough between two different real people.
  *
  * Version:
- * v0.16.0 (orchestration architecture from v0.13.1)
+ * v0.16.1 (orchestration architecture from v0.13.1)
  *
  * Date Code:
- * 130726
+ * 140726
  * ==========================================================
  */
 
@@ -35,6 +37,7 @@ import IdentityTrackingService from './IdentityTrackingService'
 import PersonRegistry from './PersonRegistry'
 import ProfileAuthorisationService from './ProfileAuthorisationService'
 import RecognitionCandidate from './RecognitionCandidate'
+import { RECOGNITION_PROVIDER } from './FaceRecognitionService'
 import {
   IDENTITY_ACTIVE_PERSON_CONFIDENCE_THRESHOLD,
   IDENTITY_RECOGNITION_PATIENCE_FRAMES,
@@ -394,18 +397,20 @@ class IdentityEngine {
       return {
         faceRecognitionActive: true,
         voiceRecognitionActive: false,
-        recognitionProvider: 'FACE_RECOGNITION_LANDMARK_GEOMETRY',
+        recognitionProvider: RECOGNITION_PROVIDER,
         preparedForFutureRecognition: true,
         candidate: null,
       }
     }
 
     return {
-      // v0.16: face recognition is real (landmark-geometry matcher),
-      // voice recognition is not — kept separate per provider.
+      // v0.16: face recognition is real; v0.16.1 swapped the matcher
+      // from landmark-geometry ratios to a real face-embedding net
+      // (see FaceRecognitionService's header). Voice recognition is
+      // still not real — kept separate per provider.
       faceRecognitionActive: true,
       voiceRecognitionActive: false,
-      recognitionProvider: 'FACE_RECOGNITION_LANDMARK_GEOMETRY',
+      recognitionProvider: RECOGNITION_PROVIDER,
       preparedForFutureRecognition: true,
       candidate: recognitionCandidate.toJSON
         ? recognitionCandidate.toJSON()

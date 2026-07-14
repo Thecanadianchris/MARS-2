@@ -370,7 +370,7 @@ class DiagnosticsManager {
           id: 'face-recognition',
           label: 'Face recognition provider',
           passed: Boolean(status.capabilities?.faceRecognition),
-          summary: 'v0.16: landmark-geometry matcher active (Foundation-grade, not biometric-grade).',
+          summary: 'v0.16.1: on-device face-embedding matcher active (128-d descriptor, real face-verification model).',
         }),
       ],
       timestamp,

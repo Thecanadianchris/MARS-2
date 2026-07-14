@@ -79,7 +79,7 @@ describe('Identity Tracking Smoke Test', () => {
     expect(result.timeline.length).toBeGreaterThan(0)
   })
 
-  it('integrates tracking with the identity engine (v0.16: face recognition active, no landmarks supplied here means no match)', () => {
+  it('integrates tracking with the identity engine (v0.16.1: face recognition active, no embedding supplied here means no match)', () => {
     IdentityEngine.reset()
 
     const result = IdentityEngine.evaluate(createMockPerceptionResult())
@@ -87,11 +87,11 @@ describe('Identity Tracking Smoke Test', () => {
     expect(result.status).toBe('success')
     expect(result.tracking.active).toBe(true)
     expect(result.tracking.trackingId).toBe('TRK-000001')
-    // v0.16: recognition is a real provider now, but this mock has no
-    // faceLandmarks, so FaceRecognitionService can't produce a
-    // signature and correctly reports zero confidence / no match.
+    // v0.16.1: recognition is a real embedding-based provider now, but
+    // this mock has no faceEmbedding, so FaceRecognitionService can't
+    // produce a match and correctly reports zero confidence / no match.
     expect(result.recognition.faceRecognitionActive).toBe(true)
-    expect(result.recognition.recognitionProvider).toBe('FACE_RECOGNITION_LANDMARK_GEOMETRY')
+    expect(result.recognition.recognitionProvider).toBe('FACE_RECOGNITION_EMBEDDING_NET')
     expect(result.recognition.candidate.identityConfidence).toBe(0)
     expect(result.recognition.candidate.candidateProfiles).toEqual([])
   })

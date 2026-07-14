@@ -24,6 +24,18 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(process.cwd(), './src'),
+      // @vladmandic/face-api's package.json "main" points at its NodeJS
+      // build (dist/face-api.node.js), which requires @tensorflow/tfjs-node
+      // (a native binding we don't want or need — MARS only ever runs this
+      // in the browser). Vite's own build already prefers the "browser"/
+      // "module" field and picks the right ESM bundle, but Vitest runs
+      // tests under Node and follows "main" by default, which fails with
+      // "Cannot find module '@tensorflow/tfjs-node'". This alias forces
+      // both dev/build and test to resolve to the same browser ESM build.
+      '@vladmandic/face-api': path.resolve(
+        process.cwd(),
+        './node_modules/@vladmandic/face-api/dist/face-api.esm.js'
+      ),
     },
   },
   server: {

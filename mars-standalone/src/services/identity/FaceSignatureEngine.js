@@ -9,13 +9,17 @@
  * Derives a lightweight, deterministic face "signature" from
  * MediaPipe face-mesh landmarks, and compares two signatures.
  *
- * This is the v0.16 Face Recognition Foundation's chosen
- * recognition approach ("Option A" from the scoping doc):
- * landmark-geometry ratios, not a trained face-embedding model.
- * It is honestly weak — pose/lighting-sensitive, not biometric
- * grade — but it is real geometry comparison, not a simulation,
- * and needs no additional ML dependency or model download beyond
- * the FaceLandmarker already available in @mediapipe/tasks-vision.
+ * SUPERSEDED as of v0.16.1: this was the v0.16 Face Recognition
+ * Foundation's original matcher ("Option A" from the scoping doc)
+ * — 8 geometry ratios, not a trained face-embedding model. A live
+ * test (14 July 2026, Christian) showed it isn't discriminative
+ * enough between two different real people (an unenrolled person
+ * was misidentified as the only enrolled one). FaceRecognitionService
+ * now uses FaceEmbeddingEngine/FaceEmbeddingService instead. This
+ * module is kept (not deleted) — it's still fully real, still unit
+ * tested, and remains available as a cheap secondary geometry check
+ * if a future milestone wants to combine it with the embedding
+ * match rather than replace it outright.
  *
  * All landmarks are MediaPipe's normalised face-mesh coordinates
  * (x, y in [0,1] relative to the image). The signature is built

@@ -20,13 +20,22 @@
  * ==========================================================
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import IdentityEngine from '@/services/identity/IdentityEngine'
 import PersonRegistry from '@/services/identity/PersonRegistry'
+import LivePipelineStore from '@/services/livePipeline/LivePipelineStore'
 import {
+  CAPABILITY_STATE,
+  createCapabilityState,
   createSimulationState,
   createWaitingState,
 } from '@/services/capabilityState'
+
+// v0.16.1: poll interval for surfacing the live-camera identity result
+// on the Identity tab. LivePipelineStore has no subscribe/event model,
+// so this hook re-reads its snapshot on a short timer rather than
+// wiring a new pub/sub layer for one consumer.
+const LIVE_POLL_INTERVAL_MS = 500
 
 const IDENTITY_SCENARIOS = Object.freeze({
   NO_PERSON: 'no_person',
@@ -39,12 +48,46 @@ const IDENTITY_SCENARIOS = Object.freeze({
 export default function useIdentityFoundation() {
   const [scenario, setScenario] = useState(IDENTITY_SCENARIOS.NO_PERSON)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [liveTick, setLiveTick] = useState(0)
+
+  // v0.16.1: while no simulation scenario is explicitly selected, poll
+  // the live camera pipeline so this panel can show the real identity
+  // result instead of always sitting on the simulation-only "waiting"
+  // state. An explicit simulation button still always wins.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveTick((value) => value + 1)
+    }, LIVE_POLL_INTERVAL_MS)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const livePipelineResult = useMemo(
+    () => LivePipelineStore.getLatestResult(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveTick]
+  )
+  const livePipelineStatus = useMemo(
+    () => LivePipelineStore.getStatus(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveTick]
+  )
+
+  const liveIdentityActive = Boolean(
+    livePipelineStatus.healthy &&
+      !livePipelineStatus.stale &&
+      livePipelineResult?.identity
+  )
 
   const profiles = useMemo(() => PersonRegistry.listProfiles(), [refreshToken])
   const pendingProfiles = useMemo(() => PersonRegistry.listPendingProfiles(), [refreshToken])
 
   const identityResult = useMemo(() => {
     if (scenario === IDENTITY_SCENARIOS.NO_PERSON) {
+      if (liveIdentityActive) {
+        return livePipelineResult.identity
+      }
+
       return IdentityEngine.evaluate(null)
     }
 
@@ -62,7 +105,7 @@ export default function useIdentityFoundation() {
         trackingId: `ui-demo-${scenario}`,
       },
     })
-  }, [scenario, refreshToken])
+  }, [scenario, refreshToken, liveIdentityActive, livePipelineResult])
 
   const diagnostics = useMemo(() => IdentityEngine.getDiagnostics(), [refreshToken])
 
@@ -91,7 +134,7 @@ export default function useIdentityFoundation() {
         label: 'Face Recognition Provider',
         ready: Boolean(diagnostics.capabilities?.faceRecognition),
         planned: false,
-        summary: 'v0.16: landmark-geometry matcher active (Foundation-grade, not biometric-grade). Face recognition is part of Identity but not the whole subsystem.',
+        summary: 'v0.16.1: on-device face-embedding matcher active (128-d descriptor, real face-verification model). Face recognition is part of Identity but not the whole subsystem.',
       },
       {
         id: 'voice-recognition-provider',
@@ -113,6 +156,17 @@ export default function useIdentityFoundation() {
 
   const capabilityState = useMemo(() => {
     if (scenario === IDENTITY_SCENARIOS.NO_PERSON) {
+      if (liveIdentityActive) {
+        return createCapabilityState({
+          state: CAPABILITY_STATE.LIVE,
+          label: 'Identity',
+          source: 'live-camera',
+          message: livePipelineResult.identity.summary || 'Live camera identity active.',
+          confidence: (livePipelineResult.identity.confidence || 0) / 100,
+          lastUpdate: livePipelineResult.livePipeline?.updatedAt || null,
+        })
+      }
+
       return createWaitingState({
         label: 'Identity',
         source: 'identity-foundation',
@@ -125,7 +179,7 @@ export default function useIdentityFoundation() {
       source: 'identity-foundation-scenario',
       message: 'Scenario simulation is active. Not live face recognition.',
     })
-  }, [scenario])
+  }, [scenario, liveIdentityActive, livePipelineResult])
 
   const selectScenario = (nextScenario) => {
     setScenario(nextScenario)

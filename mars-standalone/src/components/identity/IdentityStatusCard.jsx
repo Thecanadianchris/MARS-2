@@ -17,12 +17,32 @@
 
 import { ShieldCheck, UserRound } from 'lucide-react'
 import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
+import { isWaitingCapabilityState } from '@/services/capabilityState'
+import { IDENTITY_STATES } from '@/services/identity/IdentityTypes'
+
+const MATCHED_STATES = [
+  IDENTITY_STATES.KNOWN,
+  IDENTITY_STATES.TRUSTED,
+  IDENTITY_STATES.PROTECTED,
+]
 
 export default function IdentityStatusCard({ identityResult, capabilityState }) {
   const result = identityResult || {}
   const profile = result.profile || {}
-  const waiting = capabilityState?.isWaiting
-  const displayName = waiting ? 'No recognised person' : profile.displayName || 'Unknown person'
+  const waiting = isWaitingCapabilityState(capabilityState)
+  const isMatched = MATCHED_STATES.includes(result.state)
+
+  // v0.16.1: say who MARS identified, or say plainly that it hasn't —
+  // "Person unknown" for any live face that hasn't matched a profile
+  // (SEARCHING/UNKNOWN/TRACKING/etc.), distinct from "No person" when
+  // nobody is present at all.
+  const displayName = waiting
+    ? 'No recognised person'
+    : result.state === IDENTITY_STATES.NO_PERSON
+      ? 'No person'
+      : isMatched
+        ? profile.displayName || 'Unknown person'
+        : 'Person unknown'
   const userType = waiting ? 'waiting for live identity input' : formatUserType(profile.userType || result.userType || 'unknown')
 
   return (

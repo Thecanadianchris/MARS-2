@@ -25,6 +25,7 @@ import BehaviourPatternEngine from './BehaviourPatternEngine'
 import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
 import FaceLandmarkService from './FaceLandmarkService'
+import FaceEmbeddingService from './FaceEmbeddingService'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
 import IdentityEngine from '../identity/IdentityEngine'
@@ -109,8 +110,19 @@ class VisionPipeline {
     // for Face Recognition, distinct from FaceFoundationEngine's coarse
     // ~11-point head-orientation read off the pose landmarks above.
     // Gracefully degrades (empty landmarks) with no camera/model, same
-    // pattern as PoseDetectionService.
+    // pattern as PoseDetectionService. Retained for quality-gating and
+    // potential future geometry-hybrid use even though v0.16.1 moved
+    // matching itself onto face embeddings (below).
     const faceLandmarkResult = await FaceLandmarkService.detectFace(frame)
+
+    // v0.16.1: real face-embedding descriptor (128-d, @vladmandic/face-api)
+    // for actual matching — replaces the v0.16 landmark-geometry-ratio
+    // signature, which a live test showed wasn't discriminative enough
+    // between two different real people. Computed from the raw frame
+    // (not the MediaPipe landmarks above) since the embedding model runs
+    // its own detection/alignment. Same graceful-degrade contract as
+    // every other vision provider here.
+    const faceEmbeddingResult = await FaceEmbeddingService.computeEmbedding(frame)
 
     const prePersonalRiskLevel = this.calculateRiskLevel([
       bodyState.riskModifier,
@@ -144,6 +156,7 @@ class VisionPipeline {
       activityRecognition,
       faceFoundation,
       faceLandmarks: faceLandmarkResult.landmarks,
+      faceEmbedding: faceEmbeddingResult.descriptor,
       risk: riskBeforePersonalObservation,
     }
 
@@ -418,6 +431,7 @@ class VisionPipeline {
       activityRecognition: null,
       faceFoundation: null,
       faceLandmarks: [],
+      faceEmbedding: null,
       observationStream: null,
       identity: null,
       personalObservation: null,
