@@ -56,6 +56,22 @@ export const IDENTITY_CONFIDENCE = Object.freeze({
   BLOCKED: 95,
 })
 
+// v0.16: how many consecutive frames a face is given to be matched
+// before the state machine gives up and reports UNKNOWN instead of
+// SEARCHING. Keeps a brief glance from immediately reading as
+// "unknown person" in the UI.
+export const IDENTITY_RECOGNITION_PATIENCE_FRAMES = 3
+
+// v0.16: minimum face-match confidence (RecognitionCandidate's
+// identityConfidence) required before MemoryIntelligenceService.
+// setActivePerson() is allowed to fire. Deliberately higher than
+// RecognitionCandidate's own 0.75 "recognised" threshold — a
+// recognised candidate is enough to resolve a KNOWN/TRUSTED state,
+// but switching the whole memory system's active person is a
+// higher-stakes action and gets a higher bar, especially since it
+// must never happen on a weak match onto a protected profile.
+export const IDENTITY_ACTIVE_PERSON_CONFIDENCE_THRESHOLD = 0.85
+
 export const IDENTITY_EVENTS = Object.freeze({
   PERSON_NOT_VISIBLE: 'person_not_visible',
   PERSON_DETECTED: 'person_detected',

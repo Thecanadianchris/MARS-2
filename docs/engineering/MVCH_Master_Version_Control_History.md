@@ -103,14 +103,14 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 
 ---
 
-# PHASE 7 — Face Recognition *(Planned)*
+# PHASE 7 — Face Recognition
 
-| Version | Description |
-|---|---|
-| **v0.16** | Face Recognition Foundation |
-| **v0.16.1** | Face Registration & Known Person Database |
-| **v0.16.2** | Identity Confirmation & Continuous Recognition |
-| **v0.16.3** | Face Recognition Diagnostics |
+| Version | Status | Date | Description |
+|---|---|---|---|
+| **v0.16** | 🚧 In Progress | 13 July 2026 | Face Recognition Foundation. Real landmark-geometry matcher (MediaPipe FaceLandmarker + `FaceSignatureEngine`) fills the `RecognitionCandidate` slot `IdentityTrackingService` was hardcoded to leave empty since v0.13.1. New `SEARCHING` identity state (defined since v0.13.0, wired for the first time). `MemoryIntelligenceService.setActivePerson()` now has a real caller — gated at ≥0.85 confidence via `IdentityEngine.shouldActivatePerson()`, never firing on a weak match including onto a protected profile. **`npm run release-check` PASS (13 July, Christian): 40 test files, 211 tests, Build PASS** — exact match to projection. Still 🚧, not ✅, pending one thing: **live-camera UI verification** (no camera existed in the build sandbox). See `manifest-history/Engineering_Manifest_v0.16_Face_Recognition_Foundation.md`. |
+| **v0.16.1** | Planned | — | Face Registration & Known Person Database. Build the enrollment UI (`FaceRecognitionService.enroll()` currently only reachable programmatically); decide whether `FaceEnrollmentStore` should persist across reloads. |
+| **v0.16.2** | Planned | — | Identity Confirmation & Continuous Recognition. |
+| **v0.16.3** | Planned | — | Face Recognition Diagnostics. |
 
 ---
 

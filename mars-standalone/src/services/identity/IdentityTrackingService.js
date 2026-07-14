@@ -15,15 +15,20 @@
  *
  * It does not answer identity, permission or decision questions.
  *
+ * v0.16: identityConfidence/candidateProfiles are now real,
+ * produced by FaceRecognitionService, instead of the hardcoded
+ * 0/[] this service shipped with in v0.13.1.
+ *
  * Version:
- * v0.13.1
+ * v0.16.0
  *
  * Date Code:
- * 040726
+ * 130726
  * ==========================================================
  */
 
 import FaceQualityEngine from './FaceQualityEngine'
+import FaceRecognitionService from './FaceRecognitionService'
 import IdentityTimelineService from './IdentityTimelineService'
 import RecognitionCandidate, { RECOGNITION_STATES } from './RecognitionCandidate'
 import RecognitionConfidence from './RecognitionConfidence'
@@ -68,12 +73,17 @@ class IdentityTrackingService {
         0.75,
     })
 
+    const faceRecognitionResult = FaceRecognitionService.recognise({
+      landmarks: safePerception.faceLandmarks,
+      faceQualityResult: faceQuality,
+    })
+
     const trackingConfidence = existingTrack ? 0.95 : 0.75
     const recognitionConfidence = RecognitionConfidence.calculate({
       visionConfidence: safePerception.confidence ?? 0.8,
       trackingConfidence,
       faceQuality: faceQuality.quality,
-      identityConfidence: 0,
+      identityConfidence: faceRecognitionResult.identityConfidence,
     })
 
     const track = {
@@ -100,16 +110,21 @@ class IdentityTrackingService {
       faceQuality: faceQuality.quality,
       visionConfidence: safePerception.confidence ?? 0.8,
       trackingConfidence,
-      identityConfidence: 0,
+      identityConfidence: faceRecognitionResult.identityConfidence,
       boundingBox: track.boundingBox,
-      candidateProfiles: [],
+      candidateProfiles: faceRecognitionResult.candidateProfiles,
+      // Suitable quality: let the candidate derive RECOGNISED vs
+      // SEARCHING itself from identityConfidence/candidateProfiles
+      // (see RecognitionCandidate.deriveState). Unsuitable quality
+      // always overrides to QUALITY_TOO_LOW regardless of any match.
       state: faceQuality.suitable
-        ? RECOGNITION_STATES.SEARCHING
+        ? undefined
         : RECOGNITION_STATES.QUALITY_TOO_LOW,
       qualityReasons: faceQuality.reasons,
       metadata: {
         faceQuality,
         recognitionConfidence,
+        faceRecognition: faceRecognitionResult,
       },
     })
 

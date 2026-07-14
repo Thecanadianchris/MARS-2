@@ -370,7 +370,7 @@ class DiagnosticsManager {
           id: 'face-recognition',
           label: 'Face recognition provider',
           passed: Boolean(status.capabilities?.faceRecognition),
-          summary: 'Planned identity sensor. Not required for M2.1 diagnostics framework pass.',
+          summary: 'v0.16: landmark-geometry matcher active (Foundation-grade, not biometric-grade).',
         }),
       ],
       timestamp,

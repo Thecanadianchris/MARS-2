@@ -96,6 +96,14 @@ class IdentityStateMachine {
       })
     }
 
+    if (input.attemptingRecognition) {
+      return this.createState({
+        state: IDENTITY_STATES.SEARCHING,
+        confidence: IDENTITY_CONFIDENCE.SEARCHING,
+        reason: 'Face detected; comparing against known profiles.',
+      })
+    }
+
     return this.createState({
       state: IDENTITY_STATES.UNKNOWN,
       confidence: IDENTITY_CONFIDENCE.UNKNOWN,

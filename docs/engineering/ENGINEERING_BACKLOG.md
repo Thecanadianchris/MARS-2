@@ -15,17 +15,24 @@ Status: living document — append/update as items are found or resolved. Source
 
 ---
 
-## To fold into v0.16 scoping (not separate fixes — build these correctly the first time)
+## Resolved (13 July 2026, v0.16 Face Recognition Foundation build)
 
-- **Wire the `SEARCHING` identity state.** `IdentityStateMachine.evaluate()` currently can never produce `SEARCHING`/`DETECTED` even though both are defined in `IdentityTypes` and referenced by `IdentityObservationBuilder`/`createWorkflowState`. v0.16 needs exactly this state (face detected, quality check passed, recognition call in flight) — wire it into the state machine as part of the v0.16 build rather than patching it in later.
-- **Decide the canonical "is this person protected" source before v0.16 adds a fourth check.** Three independent implementations exist today: `PersonRegistry.protected` (drives `IdentityStateMachine` and `BehaviourRiskScoring` — the one actually in the live path), `services/users/ProtectedUserService`, and `services/behaviour/ProtectedBehaviourPolicy`. Recommendation: keep `PersonRegistry.protected` canonical; the other two either read from it or get a comment marking them as intentionally independent. Don't let face recognition introduce a fifth path.
-- **Camera abstraction — design for multiple cameras later without building it now.** See "Multi-camera / distributed monitoring" roadmap item below. `CameraService`/`VisionPipeline` are currently hardcoded singletons assuming exactly one camera source (the S22). v0.16 doesn't need multi-camera support, but when touching `CameraService`/`FrameCaptureService`/`VisionPipeline` for face recognition, avoid baking in new single-camera assumptions that would make a future camera-source concept (id/label per camera) harder to retrofit. No new abstraction needs to be built now — just don't make the eventual one harder.
+- **`SEARCHING` identity state wired.** `IdentityStateMachine` now accepts `attemptingRecognition`; `IdentityEngine.isAttemptingRecognition()` computes it from the tracked face's `framesSeen` against a 3-frame patience window (`IDENTITY_RECOGNITION_PATIENCE_FRAMES`) before falling back to `UNKNOWN`.
+- **Canonical "protected" source confirmed, not touched.** Face recognition reads/writes only through `PersonRegistry`/`IdentityEngine`; no new protected-status check was introduced. The pre-existing triplication (`services/users/ProtectedUserService`, `services/behaviour/ProtectedBehaviourPolicy`) is unchanged and still on the list below.
+- **Camera-agnostic by convention, honoured.** `FaceRecognitionService`/`FaceLandmarkService` take a frame/landmarks as input; neither reaches into `CameraService`'s singleton state, so the future multi-camera phase (below) isn't harder to retrofit than it already would have been.
+- **`useIdentityFoundation.js` bug fixed.** Was missing `capabilityState`/`clearSimulation` from its return object despite `IdentityPanel.jsx` destructuring both — found in the architecture review, fixed while touching this code for v0.16.
+
+Still open, not part of v0.16's scope:
+
+- **Face enrollment persistence decision.** `FaceEnrollmentStore` is in-memory/session-only for this milestone (consistent with the rest of Vision/Identity). v0.16.1 (Face Registration & Known Person Database) needs to decide whether enrolled signatures should survive a reload, and if so, where (likely alongside `MemoryIntelligenceService`'s `localStorage` pattern, on-device only).
+- **Live-camera verification still pending.** `npm run release-check` is DONE (13 July, Christian — 40 files/211 tests, all passing, build PASS, exact match to projection). What's left before this milestone is marked ✅ Complete in the MVCH: a real live-camera pass (enroll a face via `FaceRecognitionService.enroll()` from the console, confirm live recognition reaches `KNOWN`/`TRUSTED`/`PROTECTED` and the MEM-I panel's active person actually changes), then `git commit`/`push`. Currently 🚧 In Progress precisely to avoid repeating the v0.14.2 mistake (marked complete before ever being verified).
+- **Minor, not new to this milestone:** the production build now flags the JS bundle (821.56 kB / 229.34 kB gzip) as over Vite's 500 kB chunk-size warning. `@mediapipe/tasks-vision` was already a dependency; v0.16 just added a second consumer of it (`FaceLandmarkService`). Worth a code-splitting pass eventually, not urgent.
 
 ---
 
 ## Genuine bugs — fix opportunistically, not urgent
 
-- `IdentityPanel.jsx` destructures `capabilityState`/`clearSimulation` from `useIdentityFoundation()`, but the hook never returns either — both are `undefined` at render time. Worth confirming whether this actually throws or silently renders wrong, since the Identity tab will be used constantly during v0.16 UI verification — if it throws, bump this up before starting v0.16 UI checks.
+- ~~`IdentityPanel.jsx`/`useIdentityFoundation()` missing `capabilityState`/`clearSimulation`~~ — fixed 13 July during the v0.16 build (see above).
 - `DecisionPanel.jsx` references `decision.dataState`/`decision.dataStateLabel`, which `useDecisionIntelligence.js` never returns — dead/unreachable UI branch, renders as `undefined`.
 - `useVisionDiagnostics.getFaceState` reads a `faceFoundation.state` field that `FaceFoundationEngine` never actually emits (its shape is `head.orientation`/`faceDetected`, no top-level `state`) — the face-state chip on the Vision diagnostics card is effectively always showing the wrong/fallback value.
 - `ROUTE_TO_MEMORY` conversation-plan branch builds a real response every turn but can never surface in chat (excluded from `ChatConversationBridge`'s override allowlist, and "remember" messages are almost always intercepted earlier by `createMemoryAwareReply` anyway) — low priority, functionally inert today.

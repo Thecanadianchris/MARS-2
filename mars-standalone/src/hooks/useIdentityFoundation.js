@@ -23,6 +23,10 @@
 import { useMemo, useState } from 'react'
 import IdentityEngine from '@/services/identity/IdentityEngine'
 import PersonRegistry from '@/services/identity/PersonRegistry'
+import {
+  createSimulationState,
+  createWaitingState,
+} from '@/services/capabilityState'
 
 const IDENTITY_SCENARIOS = Object.freeze({
   NO_PERSON: 'no_person',
@@ -86,8 +90,8 @@ export default function useIdentityFoundation() {
         id: 'face-recognition-provider',
         label: 'Face Recognition Provider',
         ready: Boolean(diagnostics.capabilities?.faceRecognition),
-        planned: true,
-        summary: 'Planned identity sensor. Face recognition is part of Identity but not the whole subsystem.',
+        planned: false,
+        summary: 'v0.16: landmark-geometry matcher active (Foundation-grade, not biometric-grade). Face recognition is part of Identity but not the whole subsystem.',
       },
       {
         id: 'voice-recognition-provider',
@@ -107,8 +111,28 @@ export default function useIdentityFoundation() {
     [diagnostics]
   )
 
+  const capabilityState = useMemo(() => {
+    if (scenario === IDENTITY_SCENARIOS.NO_PERSON) {
+      return createWaitingState({
+        label: 'Identity',
+        source: 'identity-foundation',
+        message: 'Waiting for a person to be observed.',
+      })
+    }
+
+    return createSimulationState({
+      label: 'Identity',
+      source: 'identity-foundation-scenario',
+      message: 'Scenario simulation is active. Not live face recognition.',
+    })
+  }, [scenario])
+
   const selectScenario = (nextScenario) => {
     setScenario(nextScenario)
+  }
+
+  const clearSimulation = () => {
+    setScenario(IDENTITY_SCENARIOS.NO_PERSON)
   }
 
   const refresh = () => {
@@ -123,8 +147,10 @@ export default function useIdentityFoundation() {
     identityResult,
     diagnostics,
     capabilities,
+    capabilityState,
     selectScenario,
     refresh,
+    clearSimulation,
   }
 }
 

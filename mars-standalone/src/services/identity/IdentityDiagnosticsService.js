@@ -18,12 +18,14 @@
  * ==========================================================
  */
 
+import FaceRecognitionService from './FaceRecognitionService'
 import PersonRegistry from './PersonRegistry'
 
 class IdentityDiagnosticsService {
   evaluate(identityResult = null) {
     const profiles = PersonRegistry.listProfiles()
     const pendingProfiles = PersonRegistry.listPendingProfiles()
+    const faceRecognitionStatus = FaceRecognitionService.getStatus()
 
     return {
       status: 'success',
@@ -41,9 +43,10 @@ class IdentityDiagnosticsService {
         localProfileRegistry: true,
         pendingProfileWorkflow: true,
         trustedUserAutoPromotion: false,
-        faceRecognition: false,
+        faceRecognition: true,
         voiceRecognition: false,
       },
+      faceRecognition: faceRecognitionStatus,
       summary: this.createSummary(profiles, pendingProfiles, identityResult),
     }
   }

@@ -24,12 +24,14 @@ import BehaviourHistoryEngine from './BehaviourHistoryEngine'
 import BehaviourPatternEngine from './BehaviourPatternEngine'
 import ActivityRecognitionEngine from './ActivityRecognitionEngine'
 import FaceFoundationEngine from './FaceFoundationEngine'
+import FaceLandmarkService from './FaceLandmarkService'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
 import IdentityEngine from '../identity/IdentityEngine'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 import NotificationManager from '../notifications/NotificationManager'
 import LivePipelineStore from '../livePipeline/LivePipelineStore'
+import MemoryIntelligenceService from '../memory/MemoryIntelligenceService'
 
 class VisionPipeline {
   constructor() {
@@ -103,6 +105,13 @@ class VisionPipeline {
       poseSummary
     )
 
+    // v0.16: separate MediaPipe face-mesh landmarks (up to 478 points)
+    // for Face Recognition, distinct from FaceFoundationEngine's coarse
+    // ~11-point head-orientation read off the pose landmarks above.
+    // Gracefully degrades (empty landmarks) with no camera/model, same
+    // pattern as PoseDetectionService.
+    const faceLandmarkResult = await FaceLandmarkService.detectFace(frame)
+
     const prePersonalRiskLevel = this.calculateRiskLevel([
       bodyState.riskModifier,
       behaviourHistory.riskModifier,
@@ -134,6 +143,7 @@ class VisionPipeline {
       behaviourPattern,
       activityRecognition,
       faceFoundation,
+      faceLandmarks: faceLandmarkResult.landmarks,
       risk: riskBeforePersonalObservation,
     }
 
@@ -143,6 +153,14 @@ class VisionPipeline {
       ...perceptionResult,
       observationStream,
     })
+
+    // v0.16 payoff: a confirmed, high-confidence face match flips the
+    // whole memory system onto that person automatically. Gated by
+    // IdentityEngine.shouldActivatePerson() — never fires on a weak
+    // match, pending profile, or non-KNOWN/TRUSTED/PROTECTED state.
+    if (IdentityEngine.shouldActivatePerson(identity)) {
+      MemoryIntelligenceService.setActivePerson(identity.profile.id)
+    }
 
     const personalObservation = PersonalObservationEngine.evaluate(
       observationStream,
@@ -399,6 +417,7 @@ class VisionPipeline {
       behaviourPattern: null,
       activityRecognition: null,
       faceFoundation: null,
+      faceLandmarks: [],
       observationStream: null,
       identity: null,
       personalObservation: null,

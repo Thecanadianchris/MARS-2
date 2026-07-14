@@ -31,8 +31,17 @@ describe('Identity Foundation Smoke Test', () => {
     expect(result.profile.displayName).toBe('No person')
   })
 
-  it('keeps a visible but unrecognised person unknown', () => {
-    const result = IdentityEngine.evaluate(createMockPerceptionResult())
+  it('keeps a visible but unrecognised person unknown once recognition patience runs out', () => {
+    IdentityEngine.reset()
+
+    // v0.16: a face is given a short patience window (SEARCHING state)
+    // before the state machine settles on UNKNOWN — exhaust it here on
+    // a fixed tracking id to reach the same steady-state this test
+    // originally asserted on the very first frame.
+    const trackingOptions = { trackingId: 'foundation-unrecognised-test' }
+    IdentityEngine.evaluate(createMockPerceptionResult(), { trackingOptions })
+    IdentityEngine.evaluate(createMockPerceptionResult(), { trackingOptions })
+    const result = IdentityEngine.evaluate(createMockPerceptionResult(), { trackingOptions })
 
     expect(result.status).toBe('success')
     expect(result.state).toBe(IDENTITY_STATES.UNKNOWN)

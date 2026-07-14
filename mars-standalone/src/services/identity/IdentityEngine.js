@@ -14,14 +14,17 @@
  * subsystems.
  *
  * This engine accepts neutral perception results or provider-
- * neutral Recognition Candidates. It prepares MARS for future
- * face recognition but does not implement biometric recognition.
+ * neutral Recognition Candidates. As of v0.16, real face
+ * recognition (a landmark-geometry matcher, Foundation-grade
+ * not biometric-grade) fills the RecognitionCandidate slot this
+ * engine was built to receive back in v0.13.1 — see
+ * FaceRecognitionService.
  *
  * Version:
- * v0.13.1
+ * v0.16.0 (orchestration architecture from v0.13.1)
  *
  * Date Code:
- * 040726
+ * 130726
  * ==========================================================
  */
 
@@ -33,6 +36,8 @@ import PersonRegistry from './PersonRegistry'
 import ProfileAuthorisationService from './ProfileAuthorisationService'
 import RecognitionCandidate from './RecognitionCandidate'
 import {
+  IDENTITY_ACTIVE_PERSON_CONFIDENCE_THRESHOLD,
+  IDENTITY_RECOGNITION_PATIENCE_FRAMES,
   IDENTITY_STATES,
   IDENTITY_USER_TYPES,
 } from './IdentityTypes'
@@ -56,6 +61,11 @@ class IdentityEngine {
     const faceDetected = this.hasFaceDetected(safePerceptionResult, recognitionCandidate)
     const matchedProfile = this.resolveMatchedProfile(safeOptions, recognitionCandidate)
     const pendingProfile = safeOptions.pendingProfile || null
+    const attemptingRecognition = this.isAttemptingRecognition(
+      faceDetected,
+      matchedProfile,
+      trackingResult
+    )
 
     const stateResult = IdentityStateMachine.evaluate({
       personPresent,
@@ -63,6 +73,7 @@ class IdentityEngine {
       matchedProfile,
       pendingProfile,
       guest: Boolean(safeOptions.guest),
+      attemptingRecognition,
     })
 
     const userType = IdentityStateMachine.getUserTypeForState(
@@ -297,6 +308,51 @@ class IdentityEngine {
     )
   }
 
+  /**
+   * True while a face is visible, no profile has matched yet, and
+   * we're still within the "give it a few frames" patience window
+   * tracked by IdentityTrackingService. Drives the SEARCHING state
+   * so a brief glance doesn't immediately read as UNKNOWN.
+   */
+  isAttemptingRecognition(faceDetected, matchedProfile, trackingResult) {
+    if (!faceDetected || matchedProfile) {
+      return false
+    }
+
+    const framesSeen = trackingResult?.track?.framesSeen || 0
+
+    return framesSeen > 0 && framesSeen < IDENTITY_RECOGNITION_PATIENCE_FRAMES
+  }
+
+  /**
+   * Gate for MemoryIntelligenceService.setActivePerson(). Pure and
+   * synchronous so it's testable without running the full vision
+   * pipeline. Only fires on a confirmed, non-pending KNOWN/TRUSTED/
+   * PROTECTED state whose underlying face-match confidence clears
+   * IDENTITY_ACTIVE_PERSON_CONFIDENCE_THRESHOLD — deliberately
+   * higher than RecognitionCandidate's own 0.75 "recognised" bar,
+   * and never true on a weak match, protected profile included.
+   */
+  shouldActivatePerson(identityResult, threshold = IDENTITY_ACTIVE_PERSON_CONFIDENCE_THRESHOLD) {
+    if (!identityResult || !identityResult.profile || identityResult.profile.pending) {
+      return false
+    }
+
+    const eligibleStates = [
+      IDENTITY_STATES.KNOWN,
+      IDENTITY_STATES.TRUSTED,
+      IDENTITY_STATES.PROTECTED,
+    ]
+
+    if (!eligibleStates.includes(identityResult.state)) {
+      return false
+    }
+
+    const matchConfidence = identityResult.recognition?.candidate?.identityConfidence ?? 0
+
+    return matchConfidence >= threshold
+  }
+
   createProfileSummary(matchedProfile, pendingProfile, state) {
     if (matchedProfile) {
       return {
@@ -336,18 +392,20 @@ class IdentityEngine {
   createRecognitionSummary(recognitionCandidate = null, trackingResult = null) {
     if (!recognitionCandidate) {
       return {
-        faceRecognitionActive: false,
+        faceRecognitionActive: true,
         voiceRecognitionActive: false,
-        recognitionProvider: 'not_implemented_in_v0.13.1',
+        recognitionProvider: 'FACE_RECOGNITION_LANDMARK_GEOMETRY',
         preparedForFutureRecognition: true,
         candidate: null,
       }
     }
 
     return {
-      faceRecognitionActive: false,
+      // v0.16: face recognition is real (landmark-geometry matcher),
+      // voice recognition is not — kept separate per provider.
+      faceRecognitionActive: true,
       voiceRecognitionActive: false,
-      recognitionProvider: 'not_implemented_in_v0.13.1',
+      recognitionProvider: 'FACE_RECOGNITION_LANDMARK_GEOMETRY',
       preparedForFutureRecognition: true,
       candidate: recognitionCandidate.toJSON
         ? recognitionCandidate.toJSON()

@@ -48,8 +48,21 @@ describe('Identity Panel Smoke Test', () => {
     expect(result.summary.toLowerCase()).not.toContain('diagnosis')
   })
 
-  it('keeps an unrecognised person in a confirmation workflow', () => {
-    const result = IdentityEngine.evaluate(createMockPerceptionResult())
+  it('keeps an unrecognised person in a confirmation workflow once recognition patience runs out', () => {
+    IdentityEngine.reset()
+
+    const trackingOptions = { trackingId: 'unrecognised-confirmation-test' }
+
+    // v0.16: the same face is given a short patience window (SEARCHING)
+    // before the state machine gives up and reports UNKNOWN — a brief
+    // glance shouldn't immediately read as "unrecognised". First frame:
+    const firstFrame = IdentityEngine.evaluate(createMockPerceptionResult(), { trackingOptions })
+    expect(firstFrame.state).toBe(IDENTITY_STATES.SEARCHING)
+    expect(firstFrame.requiresTrustedUserConfirmation).toBe(false)
+
+    // Run out the patience window on the same tracked face.
+    IdentityEngine.evaluate(createMockPerceptionResult(), { trackingOptions })
+    const result = IdentityEngine.evaluate(createMockPerceptionResult(), { trackingOptions })
 
     expect(result.status).toBe('success')
     expect(result.state).toBe(IDENTITY_STATES.UNKNOWN)
@@ -57,13 +70,13 @@ describe('Identity Panel Smoke Test', () => {
     expect(result.requiresTrustedUserConfirmation).toBe(true)
   })
 
-  it('reports planned face and voice recognition without requiring them for M2.2', () => {
+  it('reports face recognition active (v0.16) and voice recognition still planned', () => {
     const diagnostics = IdentityDiagnosticsService.evaluate(null)
 
     expect(diagnostics.capabilities.identityStateMachine).toBe(true)
     expect(diagnostics.capabilities.localProfileRegistry).toBe(true)
     expect(diagnostics.capabilities.pendingProfileWorkflow).toBe(true)
-    expect(diagnostics.capabilities.faceRecognition).toBe(false)
+    expect(diagnostics.capabilities.faceRecognition).toBe(true)
     expect(diagnostics.capabilities.voiceRecognition).toBe(false)
   })
 })
