@@ -84,7 +84,7 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 | **v0.14** | ✅ Complete | 6 July 2026 | Voice Intelligence Foundation. |
 | **v0.14.1** | ✅ Complete | 6 July 2026 | Wake Word & Command Routing. |
 | **v0.14.1.1** | ✅ Complete | 6 July 2026 | Voice Response Layer. |
-| **v0.14.2** | 🚧 In Progress | 9 July 2026 | Natural Conversation Engine. Conversation sessions, context, history, reference resolution, planner, diagnostics panel. Chat routing now partially shared with the engine (see v0.14.3) for cancel/confirm/clarify/vision cases; memory routing remains local-only by design, so full "shared chat/voice routing" is not yet claimed. Diagnostics-panel baseline: 29 test files, 99 tests, Build PASS, Release Check PASS, UI PASS. |
+| **v0.14.2** | ✅ Complete | 9 July 2026 | Natural Conversation Engine (Steps 1–2). Conversation sessions, context, history, reference resolution, planner, diagnostics panel — both steps built, tested, and UI-verified live. Chat routing was shared with the engine starting in v0.14.3 (cancel/confirm/clarify/vision cases); memory routing remains local-only by design. Diagnostics-panel baseline: 29 test files, 99 tests, Build PASS, Release Check PASS, UI PASS. |
 | **v0.14.3** | ✅ Complete | 11 July 2026 | Voice Diagnostics & Audio Pipeline. `SpeechCapabilityService` (real Speech-to-Text/Text-to-Speech browser support, surfaced on VoicePanel and VoiceService/VoiceDiagnosticsService without disturbing the existing simulated-layer flags), and `ChatConversationBridge` — a regression-safe layer wiring `NaturalConversationEngine` into live ChatPanel so it now handles cancel, confirm/continue, clarify, and vision-routing turns, while real memory commands remain fully protected and untouched. 31 test files, 109 tests, Build PASS, Release Check PASS, UI PASS (verified live: memory preserved, new conversational responses confirmed, zero console errors). |
 | **v0.14.4** | ✅ Complete | 11 July 2026 | AI Reasoning Layer. Pulled forward from v0.19.3. Three-tier escalation chain, real: `LocalProvider` (S22, honest stub until v0.19.x) → `HomeProvider` (real Ollama client for the Snapdragon X base station, live probe-based availability) → `CloudProvider` (real Claude API client). `AIReasoningService` router returns an honest escalation trail on every call. Key handling resolved: runtime entry via the rebuilt MARS Intelligence panel, localStorage only, direct browser call with Anthropic's CORS opt-in header — never in repo or bundle. Chat wired via `ChatReasoningBridge`: only generic-fallback turns escalate; memory commands and canned replies structurally protected (same guarantee as v0.14.3). Multi-provider cloud dropdown (Claude/ChatGPT/Gemini/Other) with one key per provider and optional `.env.local` seed. End-to-end verified live 12 July 2026: Home tier (Ollama ARM64, qwen3.5:4b via same-origin Vite proxy) and Cloud tier (Claude, first real AI response in MARS history) both answered with honest escalation trails; chat answers general questions via HOME_AI_SERVER while memory stays local. 33 test files, 130 tests, Build PASS, Release Check PASS, UI PASS. | |
 
@@ -125,39 +125,52 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 
 ---
 
-# PHASE 9 — Robot Control *(Planned)*
+# PHASE 9 — Multi-Camera / Distributed Monitoring *(Planned)*
+
+Raised 13 July 2026 (Christian): extend MARS beyond the single S22-mounted camera to WiFi/Bluetooth pan-tilt cameras placed around the house, so monitoring isn't limited to whatever room the robot is physically in. Positioned after Face Recognition (Phase 7) and Protected User Alerting (Phase 8) so multi-camera has a real identity/alerting system to plug into rather than building it first, and before Robot Control since it's a pure software/sensor extension. See `ENGINEERING_BACKLOG.md` for the full design-awareness note.
 
 | Version | Description |
 |---|---|
-| **v0.18** | Robot Control Foundation |
-| **v0.18.1** | Bluetooth Communication Layer |
-| **v0.18.2** | Movement Control Engine |
-| **v0.18.3** | Navigation & Sensor Integration |
-| **v0.18.4** | Robot Diagnostics |
+| **v0.18** | Camera Discovery & Pairing Foundation — add/pair additional WiFi/Bluetooth cameras, no live pipeline yet |
+| **v0.18.1** | Per-Camera Vision Pipeline — camera-id-tagged perception results, `CameraService`/`VisionPipeline` extended from a single hardcoded source to a keyed set of sources |
+| **v0.18.2** | Cross-Camera Identity Continuity — a person recognised on one camera resolves to the same active `personId` when seen on another |
+| **v0.18.3** | Multi-Feed Monitoring Dashboard |
 
 ---
 
-# PHASE 10 — Android Robot Application *(Planned)*
+# PHASE 10 — Robot Control *(Planned)*
 
 | Version | Description |
 |---|---|
-| **v0.19** | Android Robot Application |
-| **v0.19.1** | Onboard Camera Integration |
-| **v0.19.2** | Voice & Robot Integration |
-| **v0.19.3** | Local AI Integration (Samsung Galaxy S22) — reasoning chain already built in v0.14.4; this slot now means replacing the LocalProvider stub with a real on-device model |
-| **v0.19.4** | Android Diagnostics & Deployment |
+| **v0.19** | Robot Control Foundation |
+| **v0.19.1** | Bluetooth Communication Layer |
+| **v0.19.2** | Movement Control Engine |
+| **v0.19.3** | Navigation & Sensor Integration |
+| **v0.19.4** | Robot Diagnostics |
 
 ---
 
-# PHASE 11 — MARS Mk1 Release *(Planned)*
+# PHASE 11 — Android Robot Application *(Planned)*
 
 | Version | Description |
 |---|---|
-| **v0.20** | MARS Mk1 Working Application |
-| **v0.20.1** | Full System Integration |
-| **v0.20.2** | System Validation & Performance Optimisation |
-| **v0.20.3** | Mk1 Release Candidate |
-| **v0.20.4** | MARS Mk1 Production Release |
+| **v0.20** | Android Robot Application |
+| **v0.20.1** | Onboard Camera Integration |
+| **v0.20.2** | Voice & Robot Integration |
+| **v0.20.3** | Local AI Integration (Samsung Galaxy S22) — reasoning chain already built in v0.14.4; this slot now means replacing the LocalProvider stub with a real on-device model |
+| **v0.20.4** | Android Diagnostics & Deployment |
+
+---
+
+# PHASE 12 — MARS Mk1 Release *(Planned)*
+
+| Version | Description |
+|---|---|
+| **v0.21** | MARS Mk1 Working Application |
+| **v0.21.1** | Full System Integration |
+| **v0.21.2** | System Validation & Performance Optimisation |
+| **v0.21.3** | Mk1 Release Candidate |
+| **v0.21.4** | MARS Mk1 Production Release |
 
 ---
 
@@ -174,7 +187,7 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 - Voice Foundation
 - Wake Word & Routing
 - Voice Response Layer
-- Natural Conversation Foundation (current)
+- Natural Conversation Foundation
 - Voice Audio Pipeline & Chat/Voice Bridge
 - AI Reasoning Layer (Local → Home → Cloud escalation)
 - Memory Intelligence Foundation & Person-Scoped Memory (Multi-User)
@@ -187,7 +200,4 @@ Purpose: Permanent, single-source record of every MARS software version, complet
 - Robot Control
 - Android Runtime
 - Full Mk1 Integration
-- Protected User Alerting
-- Robot Control
-- Android Runtime
-- Full Mk1 Integration
+- Multi-Camera / Distributed Monitoring

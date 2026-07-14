@@ -455,7 +455,7 @@ class DiagnosticsManager {
       id: 'notification-alerting',
       label: 'Notification & Alerting',
       group: DIAGNOSTIC_GROUPS.NOTIFICATION,
-      status: liveNotification ? DIAGNOSTIC_STATUS.READY : DIAGNOSTIC_STATUS.READY,
+      status: DIAGNOSTIC_STATUS.READY,
       summary: liveNotification
         ? liveNotification.summary
         : 'Notification framework is available for robot, trusted-user and future wearable alert paths.',

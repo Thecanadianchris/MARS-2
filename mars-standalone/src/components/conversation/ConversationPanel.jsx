@@ -177,7 +177,7 @@ export default function ConversationPanel() {
           Not Included in v0.14.2
         </div>
         <p className="mt-2">
-          This panel is a diagnostics surface only. Live chat on the Chat tab does not yet route through this engine, and live audio, speech-to-text, text-to-speech and persistent memory remain future milestones (v0.14.3 and v0.15).
+          This panel is a diagnostics surface only. Live chat on the Chat tab has routed through this engine since v0.14.3 (via ChatConversationBridge); this tab just shows the engine's own session/context/plan state directly.
         </p>
       </section>
     </div>

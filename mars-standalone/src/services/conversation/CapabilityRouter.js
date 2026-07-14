@@ -115,7 +115,7 @@ class CapabilityRouter {
       case 'robot':
         result = this.placeholder(
           'robot',
-          'Robot control begins in v0.18.'
+          'Robot control begins in v0.19.'
         )
         break
 

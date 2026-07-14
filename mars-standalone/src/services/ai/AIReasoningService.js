@@ -10,10 +10,12 @@
  * the MARS "Local AI First" principle with real providers:
  *
  *   1. LOCAL_DEVICE  — on-device LLM on the S22 (honest stub
- *                      until the Android build, v0.19.x)
+ *                      until the Android build, v0.20.x)
  *   2. HOME_AI_SERVER — Ollama on the base station laptop
- *   3. CLOUD_AI       — Claude API, only when lower tiers
- *                       cannot answer and cloud is allowed
+ *   3. CLOUD_AI       — multi-provider cloud (Claude, ChatGPT,
+ *                       Gemini or a custom OpenAI-compatible
+ *                       endpoint), only when lower tiers cannot
+ *                       answer and cloud is allowed
  *
  * Every call returns an honest escalation trail recording which
  * tiers were tried and why each was skipped or failed — the
@@ -59,7 +61,7 @@ class AIReasoningService {
       return context ? `${system}\n\n${context}` : system
     }
 
-    // Tier 1 — Local device (S22). Honest stub until v0.19.x.
+    // Tier 1 — Local device (S22). Honest stub until v0.20.x.
     const localResult = await LocalProvider.reason({ prompt, system: systemFor('onPrem') })
     trail.push({ tier: LocalProvider.name, outcome: localResult.status, detail: localResult.detail || null })
 
@@ -88,7 +90,7 @@ class AIReasoningService {
       status: 'unavailable',
       response: null,
       trail,
-      detail: 'No AI tier could answer — Local is a stub until v0.19.x, and Home/Cloud were unavailable or failed.',
+      detail: 'No AI tier could answer — Local is a stub until v0.20.x, and Home/Cloud were unavailable or failed.',
     }
   }
 

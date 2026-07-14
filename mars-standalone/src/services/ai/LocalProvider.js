@@ -11,7 +11,7 @@
  *
  * Current Scope:
  * Honest stub. The on-device LLM arrives with the Android robot
- * application phase (v0.19.x). Until then this tier truthfully
+ * application phase (v0.20.x). Until then this tier truthfully
  * reports itself unavailable for reasoning, so the escalation
  * chain (Local → Home → Cloud) starts at the Home tier.
  *
@@ -43,7 +43,7 @@ class LocalProvider {
             tier: this.name,
             label: "Local Device (S22)",
             available: false,
-            detail: "On-device LLM is planned for the Android robot application (v0.19.x). Honest stub until then — escalation starts at the Home tier."
+            detail: "On-device LLM is planned for the Android robot application (v0.20.x). Honest stub until then — escalation starts at the Home tier."
         };
     }
 
@@ -52,7 +52,7 @@ class LocalProvider {
             provider: this.name,
             status: "unavailable",
             response: null,
-            detail: "No on-device model yet (arrives with the Android build, v0.19.x)."
+            detail: "No on-device model yet (arrives with the Android build, v0.20.x)."
         };
     }
 
