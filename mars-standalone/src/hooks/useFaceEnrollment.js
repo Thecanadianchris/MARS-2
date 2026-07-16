@@ -31,6 +31,7 @@ import { useEffect, useMemo, useState } from 'react'
 import LivePipelineStore from '@/services/livePipeline/LivePipelineStore'
 import FaceRecognitionService from '@/services/identity/FaceRecognitionService'
 import FaceEnrollmentStore from '@/services/identity/FaceEnrollmentStore'
+import FaceCaptureUiStore from '@/services/vision/FaceCaptureUiStore'
 
 const LIVE_POLL_INTERVAL_MS = 500
 const SAMPLE_COUNT = 4
@@ -87,22 +88,31 @@ export default function useFaceEnrollment() {
     setCapturingPersonId(personId)
     setCaptureProgress(0)
     setLastResult(null)
+    // v0.16.4: signals VisionFaceOverlay (Vision tab, always-mounted
+    // camera) to draw the landmark-point overlay on the primary face
+    // for the duration of this capture, so there's a visible cue that
+    // a face is actually being scanned right now.
+    FaceCaptureUiStore.startCapture(personId)
 
     const results = []
 
-    for (let sampleIndex = 0; sampleIndex < SAMPLE_COUNT; sampleIndex += 1) {
-      await sleep(SAMPLE_INTERVAL_MS)
+    try {
+      for (let sampleIndex = 0; sampleIndex < SAMPLE_COUNT; sampleIndex += 1) {
+        await sleep(SAMPLE_INTERVAL_MS)
 
-      const latest = LivePipelineStore.getLatestResult()
-      const embedding = latest?.faceEmbedding
+        const latest = LivePipelineStore.getLatestResult()
+        const embedding = latest?.faceEmbedding
 
-      if (embedding && embedding.length) {
-        results.push(FaceRecognitionService.enroll(personId, embedding))
-      } else {
-        results.push({ status: 'skipped_no_embedding' })
+        if (embedding && embedding.length) {
+          results.push(FaceRecognitionService.enroll(personId, embedding))
+        } else {
+          results.push({ status: 'skipped_no_embedding' })
+        }
+
+        setCaptureProgress(sampleIndex + 1)
       }
-
-      setCaptureProgress(sampleIndex + 1)
+    } finally {
+      FaceCaptureUiStore.stopCapture()
     }
 
     const samplesCaptured = results.filter((result) => result.status === 'success').length

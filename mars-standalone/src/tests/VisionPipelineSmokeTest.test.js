@@ -58,5 +58,18 @@ describe('VisionPipeline Smoke Test', () => {
     expect(result.performance.latencyMs).toBeTypeOf('number')
     expect(result.performance.fps).toBeTypeOf('number')
     expect(result.performance.processedFrameCount).toBeTypeOf('number')
+
+    // v0.16.4: multi-person detection fields — gracefully empty here
+    // since dataUrl: null short-circuits FaceEmbeddingService before
+    // any real face-api call, same convention as faceEmbedding above.
+    expect(result.faces).toEqual([])
+    expect(result.facesRoster).toEqual([])
+  })
+
+  it('v0.16.4: error path also carries the faces/facesRoster fields, empty', async () => {
+    const result = await VisionPipeline.processFrame(null)
+
+    expect(result.faces).toEqual([])
+    expect(result.facesRoster).toEqual([])
   })
 })

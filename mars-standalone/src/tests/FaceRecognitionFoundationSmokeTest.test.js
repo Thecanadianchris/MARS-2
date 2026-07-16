@@ -36,6 +36,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import FaceEnrollmentStore from '../services/identity/FaceEnrollmentStore.js'
 import FaceRecognitionService, { RECOGNITION_PROVIDER } from '../services/identity/FaceRecognitionService.js'
 import FaceEmbeddingEngine from '../services/identity/FaceEmbeddingEngine.js'
+import FaceRosterService from '../services/identity/FaceRosterService.js'
+import FaceEmbeddingService from '../services/vision/FaceEmbeddingService.js'
 import IdentityEngine from '../services/identity/IdentityEngine.js'
 import IdentityStateMachine from '../services/identity/IdentityStateMachine.js'
 import IdentityTrackingService from '../services/identity/IdentityTrackingService.js'
@@ -318,6 +320,56 @@ describe('Face Recognition Foundation Smoke Test', () => {
       ])
     })
   })
+
+  describe('FaceRosterService (v0.16.4 multi-person simultaneous roster)', () => {
+    it('builds an empty roster when no faces are supplied', () => {
+      expect(FaceRosterService.build([])).toEqual([])
+      expect(FaceRosterService.build()).toEqual([])
+    })
+
+    it('labels a face as Unknown when nobody is enrolled yet', () => {
+      const roster = FaceRosterService.build([
+        { descriptor: PERSON_A_DESCRIPTOR, box: { x: 0, y: 0, width: 100, height: 100 }, landmarks: [] },
+      ])
+
+      expect(roster).toHaveLength(1)
+      expect(roster[0].matched).toBe(false)
+      expect(roster[0].displayName).toBe('Unknown')
+      expect(roster[0].profileId).toBe(null)
+    })
+
+    it('identifies two different enrolled people in the same frame simultaneously, and leaves a stranger Unknown — the Christian+Ann scenario, but at the same time', () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
+      FaceRecognitionService.enroll('ann', PERSON_B_DESCRIPTOR)
+
+      const roster = FaceRosterService.build([
+        { descriptor: PERSON_A_DESCRIPTOR, box: { x: 0, y: 0, width: 100, height: 100 }, landmarks: [] },
+        { descriptor: PERSON_B_DESCRIPTOR, box: { x: 200, y: 0, width: 100, height: 100 }, landmarks: [] },
+        { descriptor: STRANGER_DESCRIPTOR, box: { x: 400, y: 0, width: 100, height: 100 }, landmarks: [] },
+      ])
+
+      expect(roster).toHaveLength(3)
+      expect(roster[0]).toMatchObject({ matched: true, profileId: 'christian', displayName: 'Christian' })
+      expect(roster[1]).toMatchObject({ matched: true, profileId: 'ann', displayName: 'Ann' })
+      expect(roster[2]).toMatchObject({ matched: false, profileId: null, displayName: 'Unknown' })
+    })
+  })
+
+  describe('FaceEmbeddingService.detectFaces (v0.16.4)', () => {
+    it('gracefully degrades to an empty faces array when no dataUrl is supplied', async () => {
+      const result = await FaceEmbeddingService.detectFaces({ width: 640, height: 480, dataUrl: null })
+
+      expect(result.status).toBe('empty')
+      expect(result.faceDetected).toBe(false)
+      expect(result.faces).toEqual([])
+    })
+
+    it('gracefully degrades to an empty faces array when no frame is supplied at all', async () => {
+      const result = await FaceEmbeddingService.detectFaces(null)
+
+      expect(result.faces).toEqual([])
+    })
+  })
 })
 
 // ---- synthetic 128-d descriptor fixtures ----
@@ -331,6 +383,9 @@ const DESCRIPTOR_LENGTH = 128
 
 const PERSON_A_DESCRIPTOR = buildDescriptor(0.1)
 const PERSON_B_DESCRIPTOR = buildDescriptor(0.9)
+// v0.16.4: a third, equally-far-apart vector standing in for an
+// unenrolled stranger sharing a frame with two enrolled people.
+const STRANGER_DESCRIPTOR = buildDescriptor(0.5)
 
 function buildDescriptor(baseValue) {
   return new Array(DESCRIPTOR_LENGTH).fill(0).map((_, index) => {

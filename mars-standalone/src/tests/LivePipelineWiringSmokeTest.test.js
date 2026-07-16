@@ -42,6 +42,12 @@ describe('Live Pipeline Wiring Smoke Test', () => {
     expect(stored.behaviourHistory).toBeDefined()
     expect(stored.decisionIntelligence).toBeDefined()
     expect(stored.notificationEngine).toBeDefined()
+
+    // v0.16.4: facesRoster (multi-person display roster) passes
+    // through LivePipelineStore's generic saveResult() spread with no
+    // store changes needed — confirms that stays true.
+    expect(stored.faces).toEqual([])
+    expect(stored.facesRoster).toEqual([])
   })
 
   it('surfaces live pipeline state through diagnostics', async () => {

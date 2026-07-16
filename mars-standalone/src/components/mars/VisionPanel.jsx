@@ -20,6 +20,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, CameraOff, RefreshCcw, ScanEye } from 'lucide-react'
 import VisionDiagnosticsPanel from './VisionDiagnosticsPanel'
+import VisionFaceOverlay from './VisionFaceOverlay'
 import ContinuousVisionMonitor from '@/services/vision/ContinuousVisionMonitor'
 import VisionService from '@/services/vision/VisionService'
 import { DiagnosticsManager } from '@/services/diagnostics'
@@ -276,6 +277,10 @@ export default function VisionPanel() {
         />
 
         <canvas ref={canvasRef} className="hidden" />
+
+        {active && (
+          <VisionFaceOverlay videoRef={videoRef} facesRoster={livePipelineResult?.facesRoster || []} />
+        )}
 
         {!active && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white/40">

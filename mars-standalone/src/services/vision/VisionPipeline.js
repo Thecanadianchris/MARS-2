@@ -29,6 +29,7 @@ import FaceEmbeddingService from './FaceEmbeddingService'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
 import IdentityEngine from '../identity/IdentityEngine'
+import FaceRosterService from '../identity/FaceRosterService'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 import NotificationManager from '../notifications/NotificationManager'
 import LivePipelineStore from '../livePipeline/LivePipelineStore'
@@ -122,7 +123,18 @@ class VisionPipeline {
     // (not the MediaPipe landmarks above) since the embedding model runs
     // its own detection/alignment. Same graceful-degrade contract as
     // every other vision provider here.
-    const faceEmbeddingResult = await FaceEmbeddingService.computeEmbedding(frame)
+    //
+    // v0.16.4: switched from computeEmbedding() (detectSingleFace, one
+    // face only) to detectFaces() (detectAllFaces, every face in the
+    // frame). faces[0] is the largest/most-prominent face and becomes
+    // faceEmbedding below, preserving the exact single-primary-person
+    // behaviour every existing consumer (IdentityTrackingService,
+    // IdentityEngine, MemoryIntelligenceService.setActivePerson()) was
+    // already built around. The full faces[] array is new — it feeds
+    // FaceRosterService below to recognise everyone else in view too,
+    // for display/overlay only (never the trust/memory pipeline).
+    const faceDetectionResult = await FaceEmbeddingService.detectFaces(frame)
+    const primaryFace = faceDetectionResult.faces?.[0] || null
 
     const prePersonalRiskLevel = this.calculateRiskLevel([
       bodyState.riskModifier,
@@ -156,7 +168,9 @@ class VisionPipeline {
       activityRecognition,
       faceFoundation,
       faceLandmarks: faceLandmarkResult.landmarks,
-      faceEmbedding: faceEmbeddingResult.descriptor,
+      faceEmbedding: primaryFace?.descriptor || null,
+      faces: faceDetectionResult.faces || [],
+      facesRoster: FaceRosterService.build(faceDetectionResult.faces || []),
       risk: riskBeforePersonalObservation,
     }
 
@@ -432,6 +446,8 @@ class VisionPipeline {
       faceFoundation: null,
       faceLandmarks: [],
       faceEmbedding: null,
+      faces: [],
+      facesRoster: [],
       observationStream: null,
       identity: null,
       personalObservation: null,
