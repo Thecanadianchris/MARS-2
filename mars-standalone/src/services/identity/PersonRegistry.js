@@ -11,11 +11,23 @@
  * not the future long-term memory database and it does not
  * manage permissions.
  *
+ * v0.16.8: added addProfile()/removeProfile() so the owner can add
+ * a new named person directly from the Identity tab, and persists
+ * any profile beyond the three seeded defaults (Christian/Ann/
+ * Finley) to localStorage — same on-device-only, storageAvailable()
+ * -guarded pattern as FaceEnrollmentStore. Without this, a newly
+ * added person and their enrolled face samples would survive a page
+ * reload independently of each other (FaceEnrollmentStore already
+ * persisted; this registry didn't), leaving orphaned face data with
+ * no matching profile. DEFAULT_PROFILES themselves are never
+ * persisted — they always come from this file so future code changes
+ * to them take effect immediately.
+ *
  * Version:
- * v0.13.0
+ * v0.16.8
  *
  * Date Code:
- * 030726
+ * 160726
  * ==========================================================
  */
 
@@ -55,12 +67,42 @@ const DEFAULT_PROFILES = [
   },
 ]
 
+// v0.16.8: user types the owner may pick when adding a person
+// directly. OWNER/BLOCKED/UNKNOWN are deliberately not offered here —
+// owner profiles aren't something a UI button should be able to
+// create, blocked is a moderation outcome not a starting point, and
+// unknown isn't a real choice.
+const ADDABLE_USER_TYPES = [
+  IDENTITY_USER_TYPES.TRUSTED_USER,
+  IDENTITY_USER_TYPES.PROTECTED_USER,
+  IDENTITY_USER_TYPES.GUEST,
+]
+
+const STORAGE_KEY = 'mars_person_registry_v1'
+
+function storageAvailable() {
+  try {
+    return typeof window !== 'undefined' && Boolean(window.localStorage)
+  } catch {
+    return false
+  }
+}
+
+function slugify(text) {
+  return (text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-+|-+$)/g, '')
+}
+
 class PersonRegistry {
   constructor() {
-    this.reset()
+    this.reset({ clearStorage: false })
+    this.loadFromStorage()
   }
 
-  reset() {
+  reset({ clearStorage = true } = {}) {
     this.profiles = new Map()
 
     DEFAULT_PROFILES.forEach((profile) => {
@@ -68,6 +110,60 @@ class PersonRegistry {
     })
 
     this.pendingProfiles = new Map()
+    this.customProfileIds = new Set()
+
+    if (clearStorage && storageAvailable()) {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY)
+      } catch {
+        // In-memory reset already happened even if storage clear failed.
+      }
+    }
+  }
+
+  loadFromStorage() {
+    if (!storageAvailable()) {
+      return
+    }
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY)
+
+      if (!raw) {
+        return
+      }
+
+      const parsed = JSON.parse(raw)
+
+      if (!Array.isArray(parsed)) {
+        return
+      }
+
+      parsed.forEach((profile) => {
+        if (profile && profile.id) {
+          this.profiles.set(profile.id, this.normaliseProfile(profile))
+          this.customProfileIds.add(profile.id)
+        }
+      })
+    } catch {
+      // Corrupt/blocked storage — start clean rather than throwing.
+    }
+  }
+
+  saveToStorage() {
+    if (!storageAvailable()) {
+      return
+    }
+
+    try {
+      const customProfiles = Array.from(this.customProfileIds)
+        .map((id) => this.profiles.get(id))
+        .filter(Boolean)
+
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(customProfiles))
+    } catch {
+      // Storage full/blocked — the in-memory copy keeps the session working.
+    }
   }
 
   listProfiles() {
@@ -91,6 +187,85 @@ class PersonRegistry {
         (profile) => profile.displayName.toLowerCase() === normalisedName
       ) || null
     )
+  }
+
+  /**
+   * v0.16.8. Directly adds a new local profile. This is the owner
+   * explicitly adding a person from the Identity tab — distinct from
+   * createPendingProfile()/confirmPendingProfile() below, which exist
+   * for a face MARS noticed on its own and which still require
+   * trusted-user confirmation before becoming known. An explicit
+   * "add person" action initiated by whoever is operating the device
+   * doesn't need that same confirmation dance.
+   */
+  addProfile({ displayName, userType } = {}) {
+    const trimmedName = (displayName || '').trim()
+
+    if (!trimmedName) {
+      return { status: 'rejected', reason: 'display_name_required', profile: null }
+    }
+
+    const safeUserType = ADDABLE_USER_TYPES.includes(userType)
+      ? userType
+      : IDENTITY_USER_TYPES.TRUSTED_USER
+
+    const id = this.generateUniqueId(trimmedName)
+
+    const profile = this.normaliseProfile({
+      id,
+      displayName: trimmedName,
+      userType: safeUserType,
+      trusted:
+        safeUserType === IDENTITY_USER_TYPES.TRUSTED_USER ||
+        safeUserType === IDENTITY_USER_TYPES.PROTECTED_USER,
+      protected: safeUserType === IDENTITY_USER_TYPES.PROTECTED_USER,
+      blocked: false,
+      learningEnabled: true,
+      pending: false,
+      createdAt: Date.now(),
+      source: 'owner_added',
+      notes: 'Added directly from the Identity tab.',
+    })
+
+    this.profiles.set(id, profile)
+    this.customProfileIds.add(id)
+    this.saveToStorage()
+
+    return { status: 'success', profile: { ...profile } }
+  }
+
+  /**
+   * v0.16.8. Removes a profile added via addProfile()/confirmPendingProfile()
+   * (anything tracked in customProfileIds). The three seeded
+   * DEFAULT_PROFILES can never be removed this way — they're never
+   * added to customProfileIds in the first place.
+   */
+  removeProfile(profileId) {
+    if (!profileId || !this.customProfileIds.has(profileId)) {
+      return false
+    }
+
+    const removed = this.profiles.delete(profileId)
+    this.customProfileIds.delete(profileId)
+
+    if (removed) {
+      this.saveToStorage()
+    }
+
+    return removed
+  }
+
+  generateUniqueId(displayName) {
+    const base = slugify(displayName) || 'person'
+    let candidate = base
+    let attempt = 1
+
+    while (this.profiles.has(candidate)) {
+      attempt += 1
+      candidate = `${base}-${attempt}`
+    }
+
+    return candidate
   }
 
   createPendingProfile(candidate = {}) {
@@ -136,6 +311,10 @@ class PersonRegistry {
 
     this.pendingProfiles.delete(pendingProfileId)
     this.profiles.set(confirmedProfile.id, confirmedProfile)
+    // v0.16.8: a confirmed pending profile is just as "custom" as one
+    // added directly — persist it the same way.
+    this.customProfileIds.add(confirmedProfile.id)
+    this.saveToStorage()
 
     return { ...confirmedProfile }
   }
@@ -162,4 +341,5 @@ class PersonRegistry {
   }
 }
 
+export { ADDABLE_USER_TYPES }
 export default new PersonRegistry()

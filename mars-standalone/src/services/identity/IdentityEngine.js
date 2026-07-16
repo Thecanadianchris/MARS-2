@@ -168,6 +168,32 @@ class IdentityEngine {
     }
   }
 
+  /**
+   * v0.16.8. Directly adds a new local profile, requested from the
+   * Identity tab's "Add Person" control. Distinct from
+   * createPendingProfile()/confirmPendingProfile() above: this is an
+   * explicit action by whoever is operating the device right now,
+   * not an unconfirmed auto-detected face, so it skips the pending/
+   * trusted-user-confirmation dance and writes straight to
+   * PersonRegistry. FaceEnrollmentPanel already renders an Enroll
+   * button for every profile PersonRegistry knows about, so a newly
+   * added person becomes enrollable immediately with no further
+   * wiring.
+   */
+  addPerson({ displayName, userType } = {}) {
+    return PersonRegistry.addProfile({ displayName, userType })
+  }
+
+  removePerson(profileId) {
+    const removed = PersonRegistry.removeProfile(profileId)
+
+    return {
+      status: removed ? 'success' : 'not_found',
+      profileId,
+      removed,
+    }
+  }
+
   confirmPendingProfile(pendingProfileId, approvedProfile = {}, actor = {}) {
     const safeApprovedProfile = approvedProfile || {}
     const safeActor = actor || {}

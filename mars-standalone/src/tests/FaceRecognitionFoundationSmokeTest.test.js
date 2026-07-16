@@ -95,14 +95,14 @@ describe('Face Recognition Foundation Smoke Test', () => {
       expect(FaceEnrollmentStore.enroll(null, [0.1, 0.2]).status).toBe('rejected')
     })
 
-    it('caps stored samples per person and drops the oldest', () => {
-      for (let i = 0; i < 7; i += 1) {
+    it('caps stored samples per person and drops the oldest (v0.16.5: cap raised to 10 for guided-pose diversity)', () => {
+      for (let i = 0; i < 12; i += 1) {
         FaceEnrollmentStore.enroll('christian', [i, i, i])
       }
 
       const samples = FaceEnrollmentStore.getSamples('christian')
 
-      expect(samples.length).toBe(5)
+      expect(samples.length).toBe(10)
       expect(samples[0]).toEqual([2, 2, 2])
     })
 

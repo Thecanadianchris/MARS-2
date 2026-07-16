@@ -18,6 +18,7 @@
 
 import { RefreshCw, UserRoundSearch } from 'lucide-react'
 import useIdentityFoundation from '@/hooks/useIdentityFoundation'
+import AddPersonPanel from './AddPersonPanel'
 import FaceEnrollmentPanel from './FaceEnrollmentPanel'
 import IdentityCapabilityCard from './IdentityCapabilityCard'
 import IdentityProfileCard from './IdentityProfileCard'
@@ -37,11 +38,15 @@ export default function IdentityPanel() {
     selectScenario,
     refresh,
     clearSimulation,
+    addPerson,
+    removePerson,
   } = useIdentityFoundation()
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
       <IdentityStatusCard identityResult={identityResult} capabilityState={capabilityState} />
+
+      <AddPersonPanel profiles={profiles} addPerson={addPerson} removePerson={removePerson} />
 
       <FaceEnrollmentPanel profiles={profiles} />
 

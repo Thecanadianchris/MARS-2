@@ -111,6 +111,67 @@ describe('Identity Foundation Smoke Test', () => {
     expect(approved.profile.trusted).toBe(false)
     expect(approved.profile.userType).toBe(IDENTITY_USER_TYPES.GUEST)
   })
+
+  describe('v0.16.8: adding a person directly ("how can we add more users")', () => {
+    it('rejects an empty display name without throwing', () => {
+      PersonRegistry.reset()
+
+      const result = IdentityEngine.addPerson({ displayName: '   ' })
+
+      expect(result.status).toBe('rejected')
+      expect(result.profile).toBe(null)
+    })
+
+    it('adds a new profile beyond the three seeded defaults and makes it listable immediately', () => {
+      PersonRegistry.reset()
+
+      const result = IdentityEngine.addPerson({
+        displayName: 'Dave',
+        userType: IDENTITY_USER_TYPES.TRUSTED_USER,
+      })
+
+      expect(result.status).toBe('success')
+      expect(result.profile.displayName).toBe('Dave')
+      expect(result.profile.trusted).toBe(true)
+      expect(result.profile.id).not.toBe('christian')
+
+      const profiles = PersonRegistry.listProfiles()
+      expect(profiles.some((profile) => profile.displayName === 'Dave')).toBe(true)
+    })
+
+    it('never lets an added person become an owner — falls back to trusted user', () => {
+      PersonRegistry.reset()
+
+      const result = IdentityEngine.addPerson({
+        displayName: 'Sneaky',
+        userType: IDENTITY_USER_TYPES.OWNER,
+      })
+
+      expect(result.profile.userType).toBe(IDENTITY_USER_TYPES.TRUSTED_USER)
+    })
+
+    it('generates a unique id when two people share a display name', () => {
+      PersonRegistry.reset()
+
+      const first = IdentityEngine.addPerson({ displayName: 'Sam' })
+      const second = IdentityEngine.addPerson({ displayName: 'Sam' })
+
+      expect(first.profile.id).not.toBe(second.profile.id)
+    })
+
+    it('removes an added person but refuses to remove a seeded default profile', () => {
+      PersonRegistry.reset()
+
+      const added = IdentityEngine.addPerson({ displayName: 'Temporary' })
+      const removed = IdentityEngine.removePerson(added.profile.id)
+      expect(removed.status).toBe('success')
+      expect(PersonRegistry.getProfile(added.profile.id)).toBe(null)
+
+      const protectedRemoval = IdentityEngine.removePerson('christian')
+      expect(protectedRemoval.status).toBe('not_found')
+      expect(PersonRegistry.getProfile('christian')).not.toBe(null)
+    })
+  })
 })
 
 function createMockPerceptionResult() {

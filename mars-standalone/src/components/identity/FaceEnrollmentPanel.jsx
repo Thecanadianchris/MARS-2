@@ -12,16 +12,37 @@
  * replaces the browser-console-only enrollment path used to
  * bootstrap v0.16 testing.
  *
+ * v0.16.5: shows the current guided-pose instruction
+ * (currentStepLabel from useFaceEnrollment) instead of a bare
+ * "Capturing X/Y..." counter, so the person being enrolled knows
+ * what to actually do at each step of the capture.
+ *
+ * v0.16.6: renders EnrollmentCameraPreview (a pop-up live feed) while
+ * a capture is running — until now there was no way to see yourself
+ * while enrolling from this tab. Also reflects stepStatus
+ * ('waiting'/'captured'/'timeout') from useFaceEnrollment so each
+ * step visibly confirms before the sequence advances.
+ *
+ * v0.16.9: the Enroll/Re-enroll button no longer disables itself
+ * just because the camera hasn't been started yet — clicking it now
+ * asks useFaceEnrollment to start the camera itself (via
+ * CameraStreamStore) before capturing. Christian hit this live after
+ * deleting his profile: the button showed a disabled "not usable"
+ * cursor with no way to activate the camera short of visiting the
+ * Vision tab first. The camera-status banner is now informational
+ * only, not a blocker.
+ *
  * Version:
- * v0.16.1
+ * v0.16.9
  *
  * Date Code:
- * 140726
+ * 160726
  * ==========================================================
  */
 
 import { CircleCheck, ScanFace, Trash2 } from 'lucide-react'
 import useFaceEnrollment from '@/hooks/useFaceEnrollment'
+import EnrollmentCameraPreview from './EnrollmentCameraPreview'
 
 export default function FaceEnrollmentPanel({ profiles = [] }) {
   const {
@@ -31,6 +52,8 @@ export default function FaceEnrollmentPanel({ profiles = [] }) {
     clearPerson,
     capturingPersonId,
     captureProgress,
+    currentStepLabel,
+    stepStatus,
     sampleCount,
     lastResult,
   } = useFaceEnrollment()
@@ -51,9 +74,8 @@ export default function FaceEnrollmentPanel({ profiles = [] }) {
       </p>
 
       {!cameraReady && (
-        <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-200">
-          Camera isn't feeding live frames yet. Start the camera on the Vision tab, then
-          come back here.
+        <div className="mb-3 rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 text-xs text-cyan-200">
+          Camera isn't active yet — clicking Enroll will start it automatically.
         </div>
       )}
 
@@ -96,7 +118,7 @@ export default function FaceEnrollmentPanel({ profiles = [] }) {
 
                   <button
                     onClick={() => enrollPerson(profile.id)}
-                    disabled={!cameraReady || isCapturingSomeone}
+                    disabled={isCapturingSomeone}
                     className={`rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-40 ${
                       isCapturingThisPerson
                         ? 'border-cyan-500/30 bg-cyan-500/20 text-cyan-200'
@@ -104,17 +126,43 @@ export default function FaceEnrollmentPanel({ profiles = [] }) {
                     }`}
                   >
                     {isCapturingThisPerson
-                      ? `Capturing ${captureProgress}/${sampleCount}...`
+                      ? stepStatus === 'captured'
+                        ? `Captured (${captureProgress}/${sampleCount})`
+                        : capturingPersonId && captureProgress === 0 && currentStepLabel === ''
+                          ? 'Starting camera...'
+                          : `Step ${captureProgress + 1}/${sampleCount}...`
                       : personStatus.isEnrolled
                         ? 'Re-enroll'
                         : 'Enroll'}
                   </button>
                 </div>
               </div>
+
+              {isCapturingThisPerson && currentStepLabel && (
+                <div
+                  className={`mt-3 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                    stepStatus === 'captured'
+                      ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+                      : stepStatus === 'timeout'
+                        ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+                        : 'border-cyan-500/20 bg-cyan-500/10 text-cyan-200'
+                  }`}
+                >
+                  {stepStatus === 'captured'
+                    ? 'Captured!'
+                    : stepStatus === 'timeout'
+                      ? "Couldn't get a clear frame for that pose — moving on"
+                      : currentStepLabel}
+                </div>
+              )}
             </div>
           )
         })}
       </div>
+
+      {capturingPersonId && (
+        <EnrollmentCameraPreview instructionLabel={currentStepLabel} stepStatus={stepStatus} />
+      )}
 
       {lastResult && (
         <div
@@ -126,7 +174,9 @@ export default function FaceEnrollmentPanel({ profiles = [] }) {
         >
           {lastResult.status === 'success'
             ? `Enrolled ${lastResult.personId}: ${lastResult.samplesCaptured}/${lastResult.samplesAttempted} samples captured.`
-            : `Enrollment failed for ${lastResult.personId}: no face embedding was available. Make sure a face is visible on the Vision tab.`}
+            : lastResult.reason === 'camera_unavailable'
+              ? `Couldn't start the camera for ${lastResult.personId}. Check camera permissions, or start it manually on the Vision tab and try again.`
+              : `Enrollment failed for ${lastResult.personId}: no face embedding was available. Make sure a face is visible on the Vision tab.`}
         </div>
       )}
     </section>

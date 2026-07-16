@@ -24,15 +24,26 @@
  * only maps a personId to face descriptors. PersonRegistry
  * remains the single source of truth for trust/protection.
  *
+ * v0.16.5: raised MAX_SAMPLES_PER_PERSON from 5 to 10. Enrollment
+ * now walks through a short guided pose sequence (see
+ * useFaceEnrollment.js) instead of grabbing 4 near-identical frontal
+ * frames in ~2.4s — a live test (16 July 2026, Christian) showed the
+ * old flow gave the matcher no real pose/distance diversity to work
+ * with, even though matchBest() (FaceRecognitionService.js) already
+ * does nearest-neighbor matching across every stored sample and can
+ * benefit from it. 10 comfortably holds one full guided pass (5
+ * poses) plus room for a re-enroll to blend in rather than instantly
+ * evicting the first pass.
+ *
  * Version:
- * v0.16.1
+ * v0.16.5
  *
  * Date Code:
- * 140726
+ * 160726
  * ==========================================================
  */
 
-const MAX_SAMPLES_PER_PERSON = 5
+const MAX_SAMPLES_PER_PERSON = 10
 const STORAGE_KEY = 'mars_face_enrollment_v1'
 
 function storageAvailable() {

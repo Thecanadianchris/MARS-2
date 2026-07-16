@@ -193,6 +193,31 @@ export default function useIdentityFoundation() {
     setRefreshToken((value) => value + 1)
   }
 
+  // v0.16.8: lets the Identity tab add/remove a local profile directly
+  // (the owner explicitly naming a new person), bumping refreshToken
+  // so `profiles` picks up the change immediately — FaceEnrollmentPanel
+  // already renders an Enroll row for whatever PersonRegistry knows
+  // about, so this is the only wiring a new person needs.
+  const addPerson = ({ displayName, userType }) => {
+    const result = IdentityEngine.addPerson({ displayName, userType })
+
+    if (result.status === 'success') {
+      setRefreshToken((value) => value + 1)
+    }
+
+    return result
+  }
+
+  const removePerson = (profileId) => {
+    const result = IdentityEngine.removePerson(profileId)
+
+    if (result.status === 'success') {
+      setRefreshToken((value) => value + 1)
+    }
+
+    return result
+  }
+
   return {
     scenario,
     scenarios: IDENTITY_SCENARIOS,
@@ -205,6 +230,8 @@ export default function useIdentityFoundation() {
     selectScenario,
     refresh,
     clearSimulation,
+    addPerson,
+    removePerson,
   }
 }
 

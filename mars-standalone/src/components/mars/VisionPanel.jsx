@@ -23,6 +23,7 @@ import VisionDiagnosticsPanel from './VisionDiagnosticsPanel'
 import VisionFaceOverlay from './VisionFaceOverlay'
 import ContinuousVisionMonitor from '@/services/vision/ContinuousVisionMonitor'
 import VisionService from '@/services/vision/VisionService'
+import CameraStreamStore from '@/services/vision/CameraStreamStore'
 import { DiagnosticsManager } from '@/services/diagnostics'
 
 export default function VisionPanel() {
@@ -46,6 +47,8 @@ export default function VisionPanel() {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
+
+    CameraStreamStore.clearStream()
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -81,6 +84,7 @@ export default function VisionPanel() {
       })
 
       streamRef.current = stream
+      CameraStreamStore.setStream(stream)
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -257,6 +261,19 @@ export default function VisionPanel() {
     return () => {
       stopCamera()
     }
+  }, [])
+
+  // v0.16.9: lets a control outside this component (the Identity
+  // tab's Enroll button) turn the camera on without switching tabs
+  // first. Registered through a ref so the handler CameraStreamStore
+  // calls is always this render's startCamera, never a stale one,
+  // without needing to re-register on every render.
+  const startCameraRef = useRef(startCamera)
+  startCameraRef.current = startCamera
+
+  useEffect(() => {
+    CameraStreamStore.setStartHandler(() => startCameraRef.current())
+    return () => CameraStreamStore.setStartHandler(null)
   }, [])
 
   return (
