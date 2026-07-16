@@ -103,6 +103,23 @@ describe('Face Recognition Foundation Smoke Test', () => {
       expect(samples.length).toBe(5)
       expect(samples[0]).toEqual([2, 2, 2])
     })
+
+    it('v0.16.1: reports persistence availability without throwing under a non-browser (Vitest) environment', () => {
+      const status = FaceEnrollmentStore.getStatus()
+
+      expect(status.status).toBe('success')
+      expect(typeof status.persistentStorage).toBe('boolean')
+      expect(status.onDeviceOnly).toBe(true)
+    })
+
+    it('v0.16.1: clearPerson removes only the targeted person', () => {
+      FaceEnrollmentStore.enroll('christian', [1, 2, 3])
+      FaceEnrollmentStore.enroll('ann', [4, 5, 6])
+
+      expect(FaceEnrollmentStore.clearPerson('christian')).toBe(true)
+      expect(FaceEnrollmentStore.isEnrolled('christian')).toBe(false)
+      expect(FaceEnrollmentStore.isEnrolled('ann')).toBe(true)
+    })
   })
 
   describe('FaceRecognitionService', () => {

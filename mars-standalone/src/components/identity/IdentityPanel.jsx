@@ -18,6 +18,7 @@
 
 import { RefreshCw, UserRoundSearch } from 'lucide-react'
 import useIdentityFoundation from '@/hooks/useIdentityFoundation'
+import FaceEnrollmentPanel from './FaceEnrollmentPanel'
 import IdentityCapabilityCard from './IdentityCapabilityCard'
 import IdentityProfileCard from './IdentityProfileCard'
 import IdentityStatusCard from './IdentityStatusCard'
@@ -41,6 +42,8 @@ export default function IdentityPanel() {
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto">
       <IdentityStatusCard identityResult={identityResult} capabilityState={capabilityState} />
+
+      <FaceEnrollmentPanel profiles={profiles} />
 
       <section className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-200">
         <div className="mb-3 flex items-start justify-between gap-3">

@@ -6,39 +6,100 @@
  * FaceEnrollmentStore
  *
  * Purpose:
- * Holds enrolled face signatures for the v0.16 Face Recognition
+ * Holds enrolled face descriptors for the Face Recognition
  * Foundation, keyed by personId (the same id space as
  * PersonRegistry). Supports multiple samples per person for a
  * little extra matching robustness.
  *
- * Privacy posture: on-device only, in-memory only, for this
- * milestone. Biometric signatures are never sent anywhere and
- * never leave this process. Persisting enrolled faces across
- * page reloads is explicitly deferred to v0.16.1 (Face
- * Registration & Known Person Database) — this store is the
- * Foundation-level matching primitive, not the management UI.
+ * Privacy posture: on-device only. v0.16.1 adds persistence —
+ * localStorage['mars_face_enrollment_v1'] on this machine only,
+ * same pattern as MemoryIntelligenceService (storageAvailable()
+ * guard + in-memory fallback so Vitest's Node environment still
+ * works with no window/localStorage). Enrolled descriptors are
+ * never sent anywhere and never leave this process; persisting
+ * to localStorage doesn't change that — it's still purely local
+ * to this browser/device.
  *
  * This store does not decide who is trusted or protected — it
- * only maps a personId to geometry signatures. PersonRegistry
+ * only maps a personId to face descriptors. PersonRegistry
  * remains the single source of truth for trust/protection.
  *
  * Version:
- * v0.16.0
+ * v0.16.1
  *
  * Date Code:
- * 130726
+ * 140726
  * ==========================================================
  */
 
 const MAX_SAMPLES_PER_PERSON = 5
+const STORAGE_KEY = 'mars_face_enrollment_v1'
+
+function storageAvailable() {
+  try {
+    return typeof window !== 'undefined' && Boolean(window.localStorage)
+  } catch {
+    return false
+  }
+}
 
 class FaceEnrollmentStore {
   constructor() {
-    this.reset()
+    this.reset({ clearStorage: false })
+    this.loadFromStorage()
   }
 
-  reset() {
+  reset({ clearStorage = true } = {}) {
     this.signaturesByPerson = new Map()
+
+    if (clearStorage && storageAvailable()) {
+      try {
+        window.localStorage.removeItem(STORAGE_KEY)
+      } catch {
+        // ignore — in-memory reset already happened
+      }
+    }
+  }
+
+  loadFromStorage() {
+    if (!storageAvailable()) {
+      return
+    }
+
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY)
+
+      if (!raw) {
+        return
+      }
+
+      const parsed = JSON.parse(raw)
+
+      if (!parsed || typeof parsed !== 'object') {
+        return
+      }
+
+      Object.entries(parsed).forEach(([personId, samples]) => {
+        if (Array.isArray(samples)) {
+          this.signaturesByPerson.set(personId, samples)
+        }
+      })
+    } catch {
+      // Corrupt/blocked storage — start clean rather than throwing.
+    }
+  }
+
+  saveToStorage() {
+    if (!storageAvailable()) {
+      return
+    }
+
+    try {
+      const asObject = Object.fromEntries(this.signaturesByPerson.entries())
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(asObject))
+    } catch {
+      // Storage full/blocked — the in-memory copy keeps the session working.
+    }
   }
 
   /**
@@ -59,6 +120,7 @@ class FaceEnrollmentStore {
     }
 
     this.signaturesByPerson.set(personId, updated)
+    this.saveToStorage()
 
     return {
       status: 'success',
@@ -80,7 +142,13 @@ class FaceEnrollmentStore {
   }
 
   clearPerson(personId) {
-    return this.signaturesByPerson.delete(personId)
+    const removed = this.signaturesByPerson.delete(personId)
+
+    if (removed) {
+      this.saveToStorage()
+    }
+
+    return removed
   }
 
   getStatus() {
@@ -89,8 +157,8 @@ class FaceEnrollmentStore {
     return {
       status: 'success',
       provider: 'LOCAL_FACE_ENROLLMENT_STORE',
-      version: 'v0.16.0',
-      persistentStorage: false,
+      version: 'v0.16.1',
+      persistentStorage: storageAvailable(),
       onDeviceOnly: true,
       enrolledPersonCount: persons.length,
       totalSampleCount: persons.reduce(
