@@ -340,16 +340,18 @@ export default function useBehaviourIntelligence() {
 
   const capabilityState = useMemo(() => {
     if (scenario === SCENARIOS.WAITING) {
-      return createWaitingState(
-        'No live behaviour observation is available. Waiting for Vision, Identity and Observation input.',
-        'behaviour-intelligence'
-      )
+      return createWaitingState({
+        label: 'Behaviour',
+        source: 'behaviour-intelligence',
+        message: 'No live behaviour observation is available. Waiting for Vision, Identity and Observation input.'
+      })
     }
 
-    return createSimulationState(
-      'Behaviour developer simulation is active. Displayed behaviour is not live robot data.',
-      'behaviour-panel-simulation'
-    )
+    return createSimulationState({
+      label: 'Behaviour',
+      source: 'behaviour-panel-simulation',
+      message: 'Behaviour developer simulation is active. Displayed behaviour is not live robot data.'
+    })
   }, [scenario])
 
   const result = useMemo(() => {

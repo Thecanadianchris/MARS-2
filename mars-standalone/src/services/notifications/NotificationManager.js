@@ -19,6 +19,13 @@
 import NotificationPolicy from './NotificationPolicy'
 import NotificationQueue from './NotificationQueue'
 import NotificationEngine from './NotificationEngine'
+import NotificationHistory from './NotificationHistory'
+import {
+  NOTIFICATION_TARGET,
+  NOTIFICATION_TARGET_STATUS,
+  NOTIFICATION_TARGETS,
+  getNotificationTarget
+} from './NotificationTargets'
 
 class NotificationManager {
   createFromDecision(decision = {}, userContext = {}, authorisedUsers = []) {
@@ -88,6 +95,40 @@ class NotificationManager {
 
   getQueue() {
     return NotificationQueue.getAll()
+  }
+
+  /**
+   * Real notification-framework status for diagnostics.
+   *
+   * DiagnosticsManager.evaluateNotificationStatus() has probed for this
+   * method since v0.13.6 (`typeof NotificationManager.getStatus ===
+   * 'function'`) but it never existed, so the diagnostics tile always
+   * showed a hardcoded fallback instead of live state. This reports
+   * honestly: readiness booleans are derived from the actual
+   * NOTIFICATION_TARGETS statuses (only an ACTIVE target counts as
+   * ready — none are today, matching what the fallback claimed), and
+   * queue/history counts are the real stores' contents.
+   */
+  getStatus() {
+    const trustedContactTarget = getNotificationTarget(NOTIFICATION_TARGET.TRUSTED_CONTACT)
+    const watchTarget = getNotificationTarget(NOTIFICATION_TARGET.GALAXY_WATCH)
+
+    return {
+      status: 'available',
+      provider: 'LOCAL_NOTIFICATION_MANAGER',
+      version: 'v0.13.9',
+      internalNotificationsReady: true,
+      trustedContactAlertsReady:
+        trustedContactTarget?.status === NOTIFICATION_TARGET_STATUS.ACTIVE,
+      watchInputReady: watchTarget?.status === NOTIFICATION_TARGET_STATUS.ACTIVE,
+      queueCount: NotificationQueue.getAll().length,
+      historyCount: NotificationHistory.all().length,
+      targetCount: NOTIFICATION_TARGETS.length,
+      activeTargetCount: NOTIFICATION_TARGETS.filter(
+        (target) => target.status === NOTIFICATION_TARGET_STATUS.ACTIVE
+      ).length,
+      medicalDiagnosis: false
+    }
   }
 
   reset() {

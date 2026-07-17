@@ -19,6 +19,7 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 import {
   NotificationEngine,
+  NotificationManager,
   NOTIFICATION_PRIORITY,
   NOTIFICATION_TARGET,
   DEFAULT_NOTIFICATION_PROFILES
@@ -69,5 +70,63 @@ describe('Notification Engine Smoke Test', () => {
 
     expect(result.capabilityState.state).toBe('simulation')
     expect(result.notification.status).toBe('queued')
+  })
+
+  test('surfaces the authored waiting message, not the generic default', () => {
+    // Regression guard: createWaitingState was previously called with
+    // positional string args, silently discarding the authored message.
+    const result = NotificationEngine.evaluateDecision(null)
+
+    expect(result.capabilityState.message).toBe(
+      'Waiting for Decision Intelligence output. No notification will be generated.'
+    )
+    expect(result.capabilityState.source).toBe('decision-intelligence')
+  })
+
+  test('surfaces the authored simulation message, not the generic default', () => {
+    const result = NotificationEngine.evaluateDecision({
+      dataState: 'simulation',
+      notificationPriority: NOTIFICATION_PRIORITY.ASSIST,
+      diagnosticStatement: 'Assistive decision simulation.'
+    }, 'protected-user-assistive')
+
+    expect(result.capabilityState.message).toBe(
+      'Developer simulation is active. Notification routing is not live delivery.'
+    )
+    expect(result.capabilityState.source).toBe('notification-simulation')
+  })
+
+  test('NotificationManager.getStatus reports honest live framework state', () => {
+    // Regression guard: DiagnosticsManager probes for getStatus() but it
+    // never existed, so notification diagnostics always showed a
+    // hardcoded fallback.
+    expect(typeof NotificationManager.getStatus).toBe('function')
+
+    const status = NotificationManager.getStatus()
+
+    expect(status.status).toBe('available')
+    expect(status.internalNotificationsReady).toBe(true)
+    // No delivery target is ACTIVE yet — these must stay honestly false
+    // until a target genuinely ships (trusted contact and watch are
+    // still planned).
+    expect(status.trustedContactAlertsReady).toBe(false)
+    expect(status.watchInputReady).toBe(false)
+    expect(status.activeTargetCount).toBe(0)
+    expect(status.targetCount).toBeGreaterThanOrEqual(6)
+    expect(status.medicalDiagnosis).toBe(false)
+    expect(typeof status.queueCount).toBe('number')
+    expect(typeof status.historyCount).toBe('number')
+  })
+
+  test('NotificationManager.getStatus history count tracks the engine history', () => {
+    const before = NotificationManager.getStatus().historyCount
+
+    NotificationEngine.evaluateDecision({
+      dataState: 'simulation',
+      notificationPriority: NOTIFICATION_PRIORITY.CRITICAL,
+      diagnosticStatement: 'Critical simulation.'
+    }, 'protected-user-assistive')
+
+    expect(NotificationManager.getStatus().historyCount).toBe(before + 1)
   })
 })

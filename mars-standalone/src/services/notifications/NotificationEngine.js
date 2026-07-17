@@ -54,10 +54,11 @@ class NotificationEngine {
       status: 'waiting',
       version: 'v0.13.9',
       provider: 'LOCAL_NOTIFICATION_ENGINE',
-      capabilityState: createWaitingState(
-        'Waiting for Decision Intelligence output. No notification will be generated.',
-        'decision-intelligence'
-      ),
+      capabilityState: createWaitingState({
+        label: 'Notification',
+        source: 'decision-intelligence',
+        message: 'Waiting for Decision Intelligence output. No notification will be generated.'
+      }),
       notification: null,
       targets: NOTIFICATION_TARGETS,
       profiles: DEFAULT_NOTIFICATION_PROFILES,
@@ -97,10 +98,11 @@ class NotificationEngine {
       status: allowed ? 'queued' : 'not_required',
       version: 'v0.13.9',
       provider: 'LOCAL_NOTIFICATION_ENGINE',
-      capabilityState: createSimulationState(
-        'Developer simulation is active. Notification routing is not live delivery.',
-        'notification-simulation'
-      ),
+      capabilityState: createSimulationState({
+        label: 'Notification',
+        source: 'notification-simulation',
+        message: 'Developer simulation is active. Notification routing is not live delivery.'
+      }),
       notification: stored,
       targets: NOTIFICATION_TARGETS,
       profiles: DEFAULT_NOTIFICATION_PROFILES,

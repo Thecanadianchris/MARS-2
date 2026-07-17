@@ -170,10 +170,11 @@ class VoiceService {
       service: 'VoiceService',
       version: 'v0.14.1.1',
       milestone: 'Voice Response Layer',
-      capabilityState: createWaitingState(
-        'Voice activation, command routing and deterministic response feedback are ready. Live audio remains intentionally deferred.',
-        'voice-response-layer'
-      ),
+      capabilityState: createWaitingState({
+        label: 'Voice',
+        source: 'voice-response-layer',
+        message: 'Voice activation, command routing and deterministic response feedback are ready. Live audio remains intentionally deferred.'
+      }),
       liveAudio: false,
       medicalDiagnosis: false,
     }
@@ -275,10 +276,11 @@ class VoiceService {
       historyCount: this.history.length,
       responseCount: VoiceResponseService.getStatus().responseCount,
       safetyBoundary: 'Voice Intelligence activates, routes commands and returns deterministic responses only. It does not diagnose medical conditions.',
-      capabilityState: createWaitingState(
-        'Voice command routing and deterministic response feedback are architecture-ready. Live microphone audio is intentionally deferred.',
-        'voice-response-layer'
-      ),
+      capabilityState: createWaitingState({
+        label: 'Voice',
+        source: 'voice-response-layer',
+        message: 'Voice command routing and deterministic response feedback are architecture-ready. Live microphone audio is intentionally deferred.'
+      }),
     }
   }
 

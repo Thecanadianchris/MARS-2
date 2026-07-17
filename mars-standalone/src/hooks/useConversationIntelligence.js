@@ -28,7 +28,11 @@ export default function useConversationIntelligence() {
   const [snapshot, setSnapshot] = useState(() => NaturalConversationEngine.getStatus())
   const [lastResult, setLastResult] = useState(null)
 
-  const capabilityState = createSimulationState(CAPABILITY_MESSAGE, 'conversation-panel')
+  const capabilityState = createSimulationState({
+    label: 'Conversation',
+    source: 'conversation-panel',
+    message: CAPABILITY_MESSAGE
+  })
 
   const refresh = useCallback(() => {
     const nextSnapshot = NaturalConversationEngine.getStatus()
