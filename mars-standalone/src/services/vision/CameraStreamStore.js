@@ -28,11 +28,17 @@
  * immediately if a stream already exists, so callers can safely
  * await it without caring whether the camera was already running.
  *
+ * v0.16.15: added reset() (test-only utility, same convention as
+ * every other singleton service in Identity/Vision — e.g.
+ * IdentityTrackingService.reset()) so smoke tests can start each case
+ * from a clean slate instead of leaking stream/handler/listener state
+ * across tests via the shared singleton instance.
+ *
  * Version:
- * v0.16.9
+ * v0.16.15
  *
  * Date Code:
- * 160726
+ * 170726
  * ==========================================================
  */
 
@@ -100,6 +106,18 @@ class CameraStreamStore {
         // A bad listener shouldn't break camera start/stop.
       }
     })
+  }
+
+  /**
+   * v0.16.15. Test-only utility — resets the shared singleton back to
+   * a clean slate (no stream, no start handler, no listeners) so
+   * smoke tests don't leak state across cases. Not used by any
+   * production code path.
+   */
+  reset() {
+    this.stream = null
+    this.startHandler = null
+    this.listeners.clear()
   }
 }
 

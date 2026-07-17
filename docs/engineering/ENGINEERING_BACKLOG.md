@@ -216,6 +216,16 @@ Christian, live-testing v0.16.13: "the lock on is not happening quick enough or 
 
 ---
 
+## Resolved (17 July 2026, v0.16.15 CameraStreamStore Smoke Test Coverage)
+
+Carried over from the v0.16.9 backlog ("not yet built: no smoke-test coverage for `CameraStreamStore.requestStart()`/`setStartHandler()` yet") and repeated as still-open in every subsequent milestone since.
+
+- **`services/vision/CameraStreamStore.js` — added `reset()`.** Test-only utility (same convention as every other singleton service — e.g. `IdentityTrackingService.reset()`) clearing stream/startHandler/listeners so tests start from a clean slate against the shared singleton instance. Not used by any production code path.
+- **New `tests/CameraStreamStoreSmokeTest.test.js`** — 16 tests covering stream storage (`setStream`/`clearStream`/`getStream`), subscribe/emit (including a throwing listener not breaking other listeners or the caller, and ignoring a non-function passed to `subscribe`), and `requestStart()`'s full contract: already-active short-circuit (never calls the handler), no-handler, a non-function handler being ignored, the handler being called and resolving `started` once it actually sets a stream, resolving `start-failed` (never throwing) both when the handler completes without setting a stream and when it throws outright, and the ref-indirection pattern `VisionPanel.jsx` relies on (registering a fresh handler replaces a stale one, only the latest one is ever called).
+- Pure logic, no real MediaStream/DOM required — same testability pattern as the rest of the identity/vision service layer.
+
+---
+
 Still open, not part of v0.16's scope:
 
 - ~~Face enrollment persistence decision~~ — resolved 14 July 2026, v0.16.1 (see above): persisted to `localStorage`, on-device only.
