@@ -22,11 +22,30 @@
  * after a live test showed the geometry approach wasn't
  * discriminative enough between two different real people.
  *
+ * v0.16.11: `identityHeld` is read straight off the recognition
+ * candidate and passed to IdentityStateMachine so a lock (see
+ * IdentityLockService) can keep resolving KNOWN/TRUSTED/PROTECTED
+ * even on a frame with no face evidence, instead of falling back to
+ * generic TRACKING and losing the identity — Christian's motivating
+ * case is a protected user collapsing (e.g. a seizure) and MARS
+ * needing to keep knowing who's on the floor. `reset()` already
+ * clears this transitively via IdentityTrackingService.reset(), which
+ * now also clears IdentityLockService.
+ *
+ * v0.16.12: `identityLocked` also read off the recognition candidate —
+ * distinct from `identityHeld`, which is only true on frames carried
+ * by the lock with no live face evidence. `identityLocked` is true
+ * any time the lock is engaged at all, including frames where the
+ * face IS visible and live-confirmed, so the video overlay can show a
+ * persistent "locked on" indicator rather than one that only appears
+ * during a held gap. Christian: "i want to see a visual id in this
+ * when its locked on."
+ *
  * Version:
- * v0.16.1 (orchestration architecture from v0.13.1)
+ * v0.16.12 (orchestration architecture from v0.13.1)
  *
  * Date Code:
- * 140726
+ * 170726
  * ==========================================================
  */
 
@@ -70,6 +89,20 @@ class IdentityEngine {
       trackingResult
     )
 
+    // v0.16.11: true when this frame's identity is being carried by a
+    // held IdentityLockService lock rather than reconfirmed by live
+    // face evidence — see RecognitionCandidate.identityHeld and
+    // IdentityLockService's header for the full rationale.
+    const identityHeld = Boolean(recognitionCandidate?.identityHeld)
+
+    // v0.16.12: distinct from identityHeld — true whenever the lock is
+    // engaged at all (acquired and not yet released), including on
+    // frames where the face IS visible and live-confirmed. Drives the
+    // video overlay's persistent "locked on" indicator, which
+    // identityHeld alone can't (it's false on every live-confirmed
+    // frame). See RecognitionCandidate/IdentityLockService.
+    const identityLocked = Boolean(recognitionCandidate?.identityLocked)
+
     const stateResult = IdentityStateMachine.evaluate({
       personPresent,
       faceDetected,
@@ -77,6 +110,7 @@ class IdentityEngine {
       pendingProfile,
       guest: Boolean(safeOptions.guest),
       attemptingRecognition,
+      identityHeld,
     })
 
     const userType = IdentityStateMachine.getUserTypeForState(
@@ -87,7 +121,7 @@ class IdentityEngine {
     const identityResult = {
       status: stateResult.status,
       provider: 'LOCAL_IDENTITY_ENGINE',
-      version: 'v0.13.1',
+      version: 'v0.16.12',
       timestamp: Date.now(),
       state: stateResult.state,
       confidence: stateResult.confidence,
@@ -98,6 +132,11 @@ class IdentityEngine {
       trusted: Boolean(matchedProfile?.trusted),
       protected: Boolean(matchedProfile?.protected),
       blocked: Boolean(matchedProfile?.blocked),
+      // v0.16.11: surfaced so UI/notifications can honestly show that
+      // this identity is being carried by a lock, not reconfirmed by
+      // this frame's own face evidence. See IdentityLockService.
+      identityHeld,
+      identityLocked,
       requiresTrustedUserConfirmation:
         stateResult.state === IDENTITY_STATES.UNKNOWN ||
         stateResult.state === IDENTITY_STATES.PENDING_PROFILE,

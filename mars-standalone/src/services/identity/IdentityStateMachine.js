@@ -10,11 +10,25 @@
  * stable identity state. The state machine does not recognise
  * faces itself and never promotes an unknown person to trusted.
  *
+ * v0.16.11: this used to return generic TRACKING the instant
+ * `faceDetected` was false, discarding any matchedProfile entirely —
+ * exactly the bug Christian's Identity Lock request exposed: if a
+ * protected user's face becomes unavailable (turned away, occluded, a
+ * fall), the safety-relevant "who this is" information was thrown
+ * away right when it mattered most. Now that gate only fires when
+ * there's ALSO no matchedProfile — a matchedProfile can arrive from a
+ * held IdentityLockService lock (see RecognitionCandidate's
+ * identityHeld) as well as from a live face match, so this needed no
+ * new plumbing beyond loosening the early return. `identityHeld` is
+ * threaded through purely so the reason string is honest about
+ * whether this frame actually reconfirmed the person or is carrying
+ * the identity from a prior lock.
+ *
  * Version:
- * v0.13.0
+ * v0.16.11
  *
  * Date Code:
- * 030726
+ * 160726
  * ==========================================================
  */
 
@@ -31,6 +45,13 @@ class IdentityStateMachine {
     const matchedProfile = input.matchedProfile || null
     const pendingProfile = input.pendingProfile || null
     const guest = Boolean(input.guest)
+    // v0.16.11: true when matchedProfile arrived from a held
+    // IdentityLockService lock rather than this frame's own live face
+    // match — see RecognitionCandidate.identityHeld.
+    const identityHeld = Boolean(input.identityHeld)
+    const heldNote = identityHeld
+      ? ' Tracking held through a face-visibility gap — not reconfirmed by this frame’s own face evidence.'
+      : ''
 
     if (!personPresent) {
       return this.createState({
@@ -40,7 +61,7 @@ class IdentityStateMachine {
       })
     }
 
-    if (!faceDetected) {
+    if (!faceDetected && !matchedProfile) {
       return this.createState({
         state: IDENTITY_STATES.TRACKING,
         confidence: IDENTITY_CONFIDENCE.TRACKING,
@@ -52,7 +73,7 @@ class IdentityStateMachine {
       return this.createState({
         state: IDENTITY_STATES.BLOCKED,
         confidence: IDENTITY_CONFIDENCE.BLOCKED,
-        reason: 'Matched profile is blocked.',
+        reason: `Matched profile is blocked.${heldNote}`,
       })
     }
 
@@ -60,7 +81,7 @@ class IdentityStateMachine {
       return this.createState({
         state: IDENTITY_STATES.PROTECTED,
         confidence: IDENTITY_CONFIDENCE.PROTECTED,
-        reason: 'Matched profile is a protected user.',
+        reason: `Matched profile is a protected user.${heldNote}`,
       })
     }
 
@@ -68,7 +89,7 @@ class IdentityStateMachine {
       return this.createState({
         state: IDENTITY_STATES.TRUSTED,
         confidence: IDENTITY_CONFIDENCE.TRUSTED,
-        reason: 'Matched profile is a trusted user.',
+        reason: `Matched profile is a trusted user.${heldNote}`,
       })
     }
 
@@ -76,7 +97,7 @@ class IdentityStateMachine {
       return this.createState({
         state: IDENTITY_STATES.KNOWN,
         confidence: IDENTITY_CONFIDENCE.KNOWN,
-        reason: 'Known profile matched but not trusted.',
+        reason: `Known profile matched but not trusted.${heldNote}`,
       })
     }
 

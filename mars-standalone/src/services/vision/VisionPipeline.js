@@ -29,6 +29,7 @@ import FaceEmbeddingService from './FaceEmbeddingService'
 import ObservationStreamEngine from './ObservationStreamEngine'
 import PersonalObservationEngine from './PersonalObservationEngine'
 import IdentityEngine from '../identity/IdentityEngine'
+import IdentityTrackingService from '../identity/IdentityTrackingService'
 import FaceRosterService from '../identity/FaceRosterService'
 import DecisionIntelligenceService from '../decision/DecisionIntelligenceService'
 import NotificationManager from '../notifications/NotificationManager'
@@ -134,7 +135,72 @@ class VisionPipeline {
     // FaceRosterService below to recognise everyone else in view too,
     // for display/overlay only (never the trust/memory pipeline).
     const faceDetectionResult = await FaceEmbeddingService.detectFaces(frame)
-    const primaryFace = faceDetectionResult.faces?.[0] || null
+    const detectedFaces = faceDetectionResult.faces || []
+
+    // v0.16.13: Multi-Person Simultaneous Locking. Christian live-
+    // tested two enrolled people (himself + Ann) in frame together and
+    // found the lock acquired on Ann, then dropped off him — because
+    // every face fed into IdentityTrackingService shared the SAME one
+    // trackingId (whoever was largest/most-prominent that frame), and
+    // IdentityLockService's lock is keyed by trackingId. A second,
+    // simultaneously-visible recognised person could only ever steal
+    // the lock, never hold their own alongside it.
+    //
+    // Runs IdentityTrackingService.updateFromPerception() (real side
+    // effect: builds/advances a track, and IdentityLockService's lock
+    // logic with it) for EVERY detected face this frame, not just the
+    // largest — each on its own per-profile trackingId (see
+    // IdentityTrackingService.resolveTrackingId) so simultaneously-
+    // visible enrolled people each accumulate and hold their own
+    // independent lock. IdentityEngine.evaluate() is fed a minimal,
+    // self-sufficient per-face perception object plus that face's own
+    // already-computed trackingResult (via the `trackingResult` option
+    // IdentityEngine already supported) — this avoids a second,
+    // duplicate updateFromPerception() call for the same face/frame,
+    // which would otherwise double-count framesSeen and corrupt the
+    // lock's consecutive-frame counter.
+    const perFaceResults = detectedFaces.map((face) => {
+      const facePerception = {
+        personPresent: true,
+        faceDetected: true,
+        faceEmbedding: face.descriptor,
+        faceFoundation: {
+          faceDetected: true,
+          faceCount: 1,
+          confidence: faceFoundation.confidence,
+        },
+        detections: { people: 1, faces: 1 },
+        timestamp: now,
+      }
+
+      const trackingResult = IdentityTrackingService.updateFromPerception(facePerception)
+      const faceIdentity = IdentityEngine.evaluate(facePerception, { trackingResult })
+
+      return {
+        face,
+        facePerception,
+        trackingResult,
+        identity: faceIdentity,
+        trackingId: trackingResult?.track?.trackingId || null,
+      }
+    })
+
+    // v0.16.13: choose which ONE face drives the single primary trust/
+    // decision/notification/memory-activation pipeline below (all
+    // unchanged past this point) — Christian: "Finley is the
+    // priority." A protected profile always wins primary regardless of
+    // face size; failing that, anyone already locked keeps their
+    // primary slot rather than being bumped by a merely-larger face;
+    // failing that, falls back to the original largest-face default
+    // (detectAllFaces already sorts largest-first, so perFaceResults[0]
+    // IS that same default).
+    const primaryEntry =
+      perFaceResults.find((entry) => entry.identity.protected) ||
+      perFaceResults.find((entry) => entry.identity.identityLocked) ||
+      perFaceResults[0] ||
+      null
+
+    const primaryFace = primaryEntry?.face || null
 
     const prePersonalRiskLevel = this.calculateRiskLevel([
       bodyState.riskModifier,
@@ -169,17 +235,40 @@ class VisionPipeline {
       faceFoundation,
       faceLandmarks: faceLandmarkResult.landmarks,
       faceEmbedding: primaryFace?.descriptor || null,
-      faces: faceDetectionResult.faces || [],
-      facesRoster: FaceRosterService.build(faceDetectionResult.faces || []),
+      faces: detectedFaces,
+      facesRoster: FaceRosterService.build(detectedFaces),
+      // v0.16.13: per-person lock/identity status for EVERY detected
+      // face this frame, independent of who's chosen as primary below
+      // — feeds VisionFaceOverlay so each simultaneously-visible
+      // recognised person can show their own LOCKED badge, not just
+      // whoever the single primary/decision pipeline currently is.
+      identityRoster: perFaceResults.map((entry) => ({
+        trackingId: entry.trackingId,
+        profileId: entry.identity.profile?.id || null,
+        displayName: entry.identity.profile?.displayName || null,
+        identityLocked: Boolean(entry.identity.identityLocked),
+        identityHeld: Boolean(entry.identity.identityHeld),
+      })),
       risk: riskBeforePersonalObservation,
     }
 
     const observationStream = ObservationStreamEngine.evaluate(perceptionResult)
 
-    const identity = IdentityEngine.evaluate({
-      ...perceptionResult,
-      observationStream,
-    })
+    // v0.16.13: when at least one face was detected, reuse the
+    // priority-selected primary face's ALREADY-COMPUTED trackingResult
+    // from the per-face loop above, rather than letting IdentityEngine
+    // call IdentityTrackingService.updateFromPerception() a second
+    // time for the same face/frame — that would double-count
+    // framesSeen and corrupt the lock's consecutive-frame counter.
+    // With no face detected at all this frame, falls back to the
+    // original whole-frame call unchanged — the path the held-
+    // through-occlusion lock (v0.16.11) depends on for continuity.
+    const identity = primaryEntry
+      ? IdentityEngine.evaluate(
+          { ...primaryEntry.facePerception, observationStream },
+          { trackingResult: primaryEntry.trackingResult }
+        )
+      : IdentityEngine.evaluate({ ...perceptionResult, observationStream })
 
     // v0.16 payoff: a confirmed, high-confidence face match flips the
     // whole memory system onto that person automatically. Gated by

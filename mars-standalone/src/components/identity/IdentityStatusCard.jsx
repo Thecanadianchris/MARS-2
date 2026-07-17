@@ -8,14 +8,23 @@
  * Purpose:
  * Displays the current safe Identity Foundation state.
  *
+ * v0.16.11: shows a "Tracking held" indicator when
+ * identityResult.identityHeld is true — the person's identity is
+ * being carried by an Identity Lock (see IdentityLockService)
+ * without this frame's own face evidence reconfirming it (face
+ * turned away, occluded, the person lying down). Deliberately
+ * visible rather than silent: MARS is still making a safety-relevant
+ * claim about who this is, and that claim should read as "held," not
+ * be indistinguishable from a normal live-confirmed match.
+ *
  * Version:
- * v0.13.7a
+ * v0.16.11
  * Date Code:
- * 040726
+ * 160726
  * ==========================================================
  */
 
-import { ShieldCheck, UserRound } from 'lucide-react'
+import { Lock, ShieldCheck, UserRound } from 'lucide-react'
 import CapabilityStateBadge from '@/components/mars/CapabilityStateBadge'
 import { isWaitingCapabilityState } from '@/services/capabilityState'
 import { IDENTITY_STATES } from '@/services/identity/IdentityTypes'
@@ -78,12 +87,24 @@ export default function IdentityStatusCard({ identityResult, capabilityState }) 
             </div>
           </div>
 
-          {!waiting && result.protected && (
-            <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300">
-              <ShieldCheck size={12} />
-              Protected
-            </div>
-          )}
+          <div className="flex flex-col items-end gap-1">
+            {!waiting && result.protected && (
+              <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300">
+                <ShieldCheck size={12} />
+                Protected
+              </div>
+            )}
+
+            {!waiting && result.identityHeld && (
+              <div
+                className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-300"
+                title="Identity is being carried by a lock — this frame's own face evidence didn't reconfirm it."
+              >
+                <Lock size={12} />
+                Tracking held
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">

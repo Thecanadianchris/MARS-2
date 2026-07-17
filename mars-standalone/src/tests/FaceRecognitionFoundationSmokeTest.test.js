@@ -39,6 +39,7 @@ import FaceEmbeddingEngine from '../services/identity/FaceEmbeddingEngine.js'
 import FaceRosterService from '../services/identity/FaceRosterService.js'
 import FaceEmbeddingService from '../services/vision/FaceEmbeddingService.js'
 import IdentityEngine from '../services/identity/IdentityEngine.js'
+import IdentityLockService from '../services/identity/IdentityLockService.js'
 import IdentityStateMachine from '../services/identity/IdentityStateMachine.js'
 import IdentityTrackingService from '../services/identity/IdentityTrackingService.js'
 import { RECOGNITION_STATES } from '../services/identity/RecognitionCandidate.js'
@@ -55,22 +56,38 @@ describe('Face Recognition Foundation Smoke Test', () => {
   })
 
   describe('FaceEmbeddingEngine', () => {
-    it('reports zero distance and full confidence comparing a descriptor to itself', () => {
+    it('reports zero distance and very high confidence comparing a descriptor to itself', () => {
       const descriptor = PERSON_A_DESCRIPTOR
       const distance = FaceEmbeddingEngine.compareSignatures(descriptor, descriptor)
 
       expect(distance).toBe(0)
-      expect(FaceEmbeddingEngine.distanceToConfidence(distance)).toBe(1)
+      // v0.16.11: the logistic curve is asymptotic — distance 0 reads
+      // very high (~98%) but, unlike the old linear formula, never
+      // exactly 1. That's intentional: see FaceEmbeddingEngine's
+      // header for why an exact-1.0 formula was actually the bug.
+      expect(FaceEmbeddingEngine.distanceToConfidence(distance)).toBeGreaterThan(0.95)
     })
 
-    it('reports a meaningfully larger distance between two different faces', () => {
+    it('gives a genuinely good real-world match (distance well inside the accept boundary) a genuinely high confidence — the exact gap a live test found (16 July 2026, Christian: 55% for what was actually a solid match)', () => {
+      // Christian's real live match against his own enrolled samples
+      // measured ~0.27 Euclidean distance — comfortably inside the 0.6
+      // accept boundary, a solid same-person match by any reasonable
+      // standard, yet the old linear formula reported only ~55%.
+      expect(FaceEmbeddingEngine.distanceToConfidence(0.27)).toBeGreaterThan(0.85)
+    })
+
+    it('reports confidence exactly 0.5 right at the accept/reject distance boundary', () => {
+      expect(FaceEmbeddingEngine.distanceToConfidence(0.6)).toBeCloseTo(0.5, 5)
+    })
+
+    it('reports a meaningfully larger distance between two different faces, with confidence collapsing toward zero', () => {
       const distance = FaceEmbeddingEngine.compareSignatures(
         PERSON_A_DESCRIPTOR,
         PERSON_B_DESCRIPTOR
       )
 
       expect(distance).toBeGreaterThan(0.6)
-      expect(FaceEmbeddingEngine.distanceToConfidence(distance)).toBe(0)
+      expect(FaceEmbeddingEngine.distanceToConfidence(distance)).toBeLessThan(0.01)
     })
 
     it('returns Infinity for malformed or mismatched descriptors', () => {
@@ -178,7 +195,10 @@ describe('Face Recognition Foundation Smoke Test', () => {
         faceQualityResult: { suitable: true },
       })
 
-      expect(result.identityConfidence).toBe(0)
+      // v0.16.11: the logistic curve is asymptotic, never exactly 0 —
+      // still comfortably below MIN_CANDIDATE_CONFIDENCE (0.5), so
+      // this correctly falls back to the no-match branch either way.
+      expect(result.identityConfidence).toBeLessThan(0.01)
       expect(result.candidateProfiles).toEqual([])
     })
   })
@@ -370,6 +390,280 @@ describe('Face Recognition Foundation Smoke Test', () => {
       expect(result.faces).toEqual([])
     })
   })
+
+  describe('IdentityLockService (v0.16.11, pure unit)', () => {
+    it('does not lock on a single high-confidence frame', () => {
+      const result = IdentityLockService.update({
+        trackingId: 'TRK-LOCK-001',
+        candidateProfiles: [{ profileId: 'finley', confidence: 0.95 }],
+      })
+
+      expect(result.locked).toBe(false)
+      expect(result.lockState).toBe('locking')
+      expect(result.framesToAcquire).toBe(2)
+    })
+
+    it('acquires a lock after 3 consecutive high-confidence frames for the same person', () => {
+      let result
+      for (let i = 0; i < 3; i += 1) {
+        result = IdentityLockService.update({
+          trackingId: 'TRK-LOCK-002',
+          candidateProfiles: [{ profileId: 'finley', confidence: 0.95 }],
+        })
+      }
+
+      expect(result.locked).toBe(true)
+      expect(result.personId).toBe('finley')
+      expect(result.framesToAcquire).toBe(0)
+    })
+
+    it('never locks on a weak match, even repeated', () => {
+      let result
+      for (let i = 0; i < 5; i += 1) {
+        result = IdentityLockService.update({
+          trackingId: 'TRK-LOCK-003',
+          candidateProfiles: [{ profileId: 'finley', confidence: 0.6 }],
+        })
+      }
+
+      expect(result.locked).toBe(false)
+    })
+
+    it('holds locked + held through a frame with no candidate at all', () => {
+      for (let i = 0; i < 3; i += 1) {
+        IdentityLockService.update({
+          trackingId: 'TRK-LOCK-004',
+          candidateProfiles: [{ profileId: 'finley', confidence: 0.95 }],
+        })
+      }
+
+      const held = IdentityLockService.update({ trackingId: 'TRK-LOCK-004', candidateProfiles: [] })
+
+      expect(held.locked).toBe(true)
+      expect(held.held).toBe(true)
+      expect(held.personId).toBe('finley')
+    })
+
+    it('releases the lock when a different profile clears the override bar on the same track', () => {
+      for (let i = 0; i < 3; i += 1) {
+        IdentityLockService.update({
+          trackingId: 'TRK-LOCK-005',
+          candidateProfiles: [{ profileId: 'finley', confidence: 0.95 }],
+        })
+      }
+
+      const swapped = IdentityLockService.update({
+        trackingId: 'TRK-LOCK-005',
+        candidateProfiles: [{ profileId: 'ann', confidence: 0.9 }],
+      })
+
+      // A rival clearing the bar immediately un-locks (starts building
+      // toward the new person instead) rather than keeping the stale
+      // identity — never allowed to keep misattributing once better
+      // evidence for someone else exists.
+      expect(swapped.locked).toBe(false)
+      expect(swapped.lockState).toBe('locking')
+    })
+
+    it('ignores a weak rival match and keeps holding the existing lock', () => {
+      for (let i = 0; i < 3; i += 1) {
+        IdentityLockService.update({
+          trackingId: 'TRK-LOCK-006',
+          candidateProfiles: [{ profileId: 'finley', confidence: 0.95 }],
+        })
+      }
+
+      const stillHeld = IdentityLockService.update({
+        trackingId: 'TRK-LOCK-006',
+        candidateProfiles: [{ profileId: 'ann', confidence: 0.55 }],
+      })
+
+      expect(stillHeld.locked).toBe(true)
+      expect(stillHeld.held).toBe(true)
+      expect(stillHeld.personId).toBe('finley')
+    })
+
+    it('release() clears a lock immediately', () => {
+      for (let i = 0; i < 3; i += 1) {
+        IdentityLockService.update({
+          trackingId: 'TRK-LOCK-007',
+          candidateProfiles: [{ profileId: 'finley', confidence: 0.95 }],
+        })
+      }
+
+      IdentityLockService.release('TRK-LOCK-007')
+
+      expect(IdentityLockService.getLock('TRK-LOCK-007').locked).toBe(false)
+    })
+  })
+
+  describe('End-to-end Identity Lock through the real pipeline (v0.16.11: "if finley has a seizure and is on the floor... it has a lock on it will continue to recognise the person")', () => {
+    it('reuses the same trackingId across consecutive frames instead of minting a new one every time (the continuity bug this milestone also fixed)', () => {
+      FaceRecognitionService.enroll('finley', PERSON_A_DESCRIPTOR)
+
+      const first = IdentityTrackingService.updateFromPerception(createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR))
+      const second = IdentityTrackingService.updateFromPerception(createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR))
+      const third = IdentityTrackingService.updateFromPerception(createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR))
+
+      expect(second.track.trackingId).toBe(first.track.trackingId)
+      expect(third.track.trackingId).toBe(first.track.trackingId)
+      expect(third.track.framesSeen).toBe(3)
+    })
+
+    it('IdentityEngine keeps resolving PROTECTED for finley through a face-visibility gap, instead of falling back to generic tracking — the exact seizure/floor scenario', () => {
+      FaceRecognitionService.enroll('finley', PERSON_A_DESCRIPTOR)
+
+      let result
+      for (let i = 0; i < 3; i += 1) {
+        result = IdentityEngine.evaluate(createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR))
+      }
+
+      expect(result.state).toBe(IDENTITY_STATES.PROTECTED)
+      expect(result.profile.displayName).toBe('Finley')
+      expect(result.identityHeld).toBe(false)
+
+      // Finley collapses: person-presence evidence continues (a
+      // separate detector from the face model — see VisionPipeline,
+      // PoseDetectionService), but no face is visible or detectable
+      // at all this frame.
+      const heldResult = IdentityEngine.evaluate(createPerceptionWithNoFace())
+
+      expect(heldResult.state).toBe(IDENTITY_STATES.PROTECTED)
+      expect(heldResult.profile.displayName).toBe('Finley')
+      expect(heldResult.identityHeld).toBe(true)
+      expect(heldResult.reason).toContain('Tracking held')
+
+      // The actual safety payoff: memory/behaviour attribution is
+      // still allowed to stay on Finley throughout, not silently drop
+      // to "unknown person on the floor."
+      expect(IdentityEngine.shouldActivatePerson(heldResult)).toBe(true)
+    })
+
+    it('without a lock, a single no-face frame would have reported generic tracking, not the person — confirms this is a real fix, not a no-op', () => {
+      // No enrollment, no prior frames — a bare no-face frame with no
+      // lock ever established should behave exactly as before this
+      // milestone: generic TRACKING, identity unknown.
+      const result = IdentityEngine.evaluate(createPerceptionWithNoFace())
+
+      expect(result.state).toBe(IDENTITY_STATES.TRACKING)
+      expect(result.identityHeld).toBe(false)
+    })
+
+    it('drops the hold once the person is actually gone (track expires)', () => {
+      FaceRecognitionService.enroll('finley', PERSON_A_DESCRIPTOR)
+
+      let lastTrackingId
+      for (let i = 0; i < 3; i += 1) {
+        const result = IdentityTrackingService.updateFromPerception(
+          createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR)
+        )
+        lastTrackingId = result.track.trackingId
+      }
+
+      // Simulate real time passing well beyond the tracking timeout
+      // with no person-presence evidence at all (not just no face) —
+      // the person actually left, not just turned away or collapsed.
+      const farFuture = Date.now() + 60 * 1000
+      IdentityTrackingService.expireOldTracks(farFuture)
+
+      expect(IdentityLockService.getLock(lastTrackingId).locked).toBe(false)
+    })
+  })
+
+  describe('Multi-Person Simultaneous Locking (v0.16.13, "locked on to her but then the lock turned off on me")', () => {
+    it('gives two simultaneously-recognised people their own independent trackingId, not a shared one', () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
+      FaceRecognitionService.enroll('ann', PERSON_B_DESCRIPTOR)
+
+      const christianResult = IdentityTrackingService.updateFromPerception(
+        createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR)
+      )
+      const annResult = IdentityTrackingService.updateFromPerception(
+        createPerceptionWithEmbedding(PERSON_B_DESCRIPTOR)
+      )
+
+      expect(christianResult.track.trackingId).not.toBe(annResult.track.trackingId)
+    })
+
+    it("does not let a second recognised person steal the first's lock — the exact bug found live with Ann", () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
+      FaceRecognitionService.enroll('ann', PERSON_B_DESCRIPTOR)
+
+      // Christian locks in over 3 frames, same as any single-person
+      // scenario.
+      let christianTrackingId
+      for (let i = 0; i < 3; i += 1) {
+        const result = IdentityTrackingService.updateFromPerception(
+          createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR)
+        )
+        christianTrackingId = result.track.trackingId
+      }
+      expect(IdentityLockService.getLock(christianTrackingId).locked).toBe(true)
+
+      // Ann now appears too and locks in over her OWN 3 frames,
+      // interleaved with Christian still being updated every frame —
+      // exactly like VisionPipeline processing every detected face
+      // every frame (see VisionPipeline's per-face loop).
+      let annTrackingId
+      for (let i = 0; i < 3; i += 1) {
+        IdentityTrackingService.updateFromPerception(createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR))
+        const annResult = IdentityTrackingService.updateFromPerception(
+          createPerceptionWithEmbedding(PERSON_B_DESCRIPTOR)
+        )
+        annTrackingId = annResult.track.trackingId
+      }
+
+      expect(annTrackingId).not.toBe(christianTrackingId)
+      expect(IdentityLockService.getLock(annTrackingId).locked).toBe(true)
+      expect(IdentityLockService.getLock(annTrackingId).personId).toBe('ann')
+      // The actual bug this milestone fixes: Christian's own lock must
+      // still be intact, not stolen by Ann locking in alongside him.
+      expect(IdentityLockService.getLock(christianTrackingId).locked).toBe(true)
+      expect(IdentityLockService.getLock(christianTrackingId).personId).toBe('christian')
+    })
+
+    it("an unrecognised bystander face cannot steal a recognised person's dedicated track", () => {
+      FaceRecognitionService.enroll('christian', PERSON_A_DESCRIPTOR)
+
+      let christianTrackingId
+      for (let i = 0; i < 3; i += 1) {
+        const result = IdentityTrackingService.updateFromPerception(
+          createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR)
+        )
+        christianTrackingId = result.track.trackingId
+      }
+
+      const strangerResult = IdentityTrackingService.updateFromPerception(
+        createPerceptionWithEmbedding(STRANGER_DESCRIPTOR)
+      )
+
+      expect(strangerResult.track.trackingId).not.toBe(christianTrackingId)
+      expect(IdentityLockService.getLock(christianTrackingId).locked).toBe(true)
+      expect(IdentityLockService.getLock(christianTrackingId).personId).toBe('christian')
+    })
+
+    it('a no-face whole-frame fallback still resumes a claimed/locked track (held-through-occlusion continuity is preserved)', () => {
+      FaceRecognitionService.enroll('finley', PERSON_A_DESCRIPTOR)
+
+      let finleyTrackingId
+      for (let i = 0; i < 3; i += 1) {
+        const result = IdentityTrackingService.updateFromPerception(
+          createPerceptionWithEmbedding(PERSON_A_DESCRIPTOR)
+        )
+        finleyTrackingId = result.track.trackingId
+      }
+      expect(IdentityLockService.getLock(finleyTrackingId).locked).toBe(true)
+
+      // No face at all this frame (faceEmbedding: null) — the same
+      // whole-frame fallback VisionPipeline uses when nobody's face is
+      // detected. Must resume Finley's own claimed track, not treat it
+      // as excluded/unclaimed.
+      const heldResult = IdentityTrackingService.updateFromPerception(createPerceptionWithNoFace())
+
+      expect(heldResult.track.trackingId).toBe(finleyTrackingId)
+      expect(IdentityLockService.getLock(finleyTrackingId).locked).toBe(true)
+    })
+  })
 })
 
 // ---- synthetic 128-d descriptor fixtures ----
@@ -414,6 +708,38 @@ function createPerceptionWithEmbedding(embedding) {
       confidence: 90,
     },
     faceEmbedding: embedding,
+    observationStream: {
+      ids: ['person_present'],
+      observations: [],
+    },
+  }
+}
+
+// v0.16.11: unlike createPerceptionWithEmbedding(null) (which would
+// still claim faceFoundation.faceDetected: true, since only the
+// embedding is missing), this simulates NO face evidence of any kind
+// — faceFoundation itself reports nothing detected — while
+// person-presence evidence continues. That's the actual seizure/floor
+// scenario: the person is still there (tracked via pose/body
+// detection, a separate detector from the face model), but no face
+// is visible or detectable at all.
+function createPerceptionWithNoFace() {
+  return {
+    status: 'success',
+    provider: 'FACE_RECOGNITION_SMOKE_TEST',
+    timestamp: Date.now(),
+    confidence: 0.9,
+    personPresent: true,
+    detections: {
+      people: 1,
+      faces: 0,
+    },
+    faceFoundation: {
+      faceDetected: false,
+      faceCount: 0,
+      confidence: 0,
+    },
+    faceEmbedding: null,
     observationStream: {
       ids: ['person_present'],
       observations: [],

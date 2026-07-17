@@ -296,7 +296,13 @@ export default function VisionPanel() {
         <canvas ref={canvasRef} className="hidden" />
 
         {active && (
-          <VisionFaceOverlay videoRef={videoRef} facesRoster={livePipelineResult?.facesRoster || []} />
+          <VisionFaceOverlay
+            videoRef={videoRef}
+            facesRoster={livePipelineResult?.facesRoster || []}
+            identityRoster={livePipelineResult?.identityRoster || []}
+            identityHeld={Boolean(livePipelineResult?.identity?.identityHeld)}
+            lockedDisplayName={livePipelineResult?.identity?.profile?.displayName || null}
+          />
         )}
 
         {!active && (
